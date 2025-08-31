@@ -1,0 +1,394 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [main, dev, staging]
+  pull_request:
+    branches: [main, dev, staging]
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog OSS Secret Scanning
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: GitLeaks Secret Scanning
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Snyk Dependency Scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=medium --json-file-output=snyk-results.json
+
+      - name: Upload Snyk results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk-results.json
+
+      - name: NPM Audit
+        run: pnpm audit --audit-level moderate --json > npm-audit.json || true
+
+      - name: Upload NPM Audit results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: npm-audit-results
+          path: npm-audit.json
+
+  container-scan:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule' || github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: |
+          docker build -f apps/api/Dockerfile.dev -t medeez-api:latest apps/api
+          docker build -f apps/web/Dockerfile.dev -t medeez-web:latest apps/web
+
+      - name: Run Trivy vulnerability scanner on API image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'medeez-api:latest'
+          format: 'sarif'
+          output: 'trivy-api-results.sarif'
+
+      - name: Run Trivy vulnerability scanner on Web image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'medeez-web:latest'
+          format: 'sarif'
+          output: 'trivy-web-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-api-results.sarif'
+          category: 'trivy-api'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-web-results.sarif'
+          category: 'trivy-web'
+
+  infrastructure-scan:
+    name: Infrastructure Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install CDK dependencies
+        working-directory: ./infra/cdk
+        run: npm install
+
+      - name: CDK Synth
+        working-directory: ./infra/cdk
+        run: npx cdk synth --all --context environment=dev
+
+      - name: Run Checkov on CDK templates
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: ./infra/cdk/cdk.out
+          framework: cloudformation
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+          download_external_modules: true
+
+      - name: Upload Checkov scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: checkov-results.sarif
+          category: 'checkov-infrastructure'
+
+      - name: Run TFSec on infrastructure code
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: './infra'
+          format: sarif
+          soft_fail: true
+          tfsec_args: --minimum-severity=MEDIUM
+
+      - name: Upload TFSec results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: tfsec.sarif
+          category: 'tfsec'
+
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=medeez-v2
+            -Dsonar.organization=medeez
+            -Dsonar.sources=apps/,packages/
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/*.test.js,**/*.test.ts
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.typescript.lcov.reportPaths=coverage/lcov.info
+
+  compliance-check:
+    name: HIPAA Compliance Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python dependencies
+        run: |
+          pip install boto3 pandas argparse
+
+      - name: Configure AWS credentials for security check
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_READONLY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_READONLY }}
+          aws-region: us-east-1
+
+      - name: Run HIPAA compliance check
+        run: |
+          python scripts/security-compliance-check.py \
+            --environment dev \
+            --format json \
+            --output compliance-report.json
+
+      - name: Upload compliance report
+        uses: actions/upload-artifact@v3
+        with:
+          name: hipaa-compliance-report
+          path: compliance-report.json
+
+      - name: Comment compliance results on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            try {
+              const report = JSON.parse(fs.readFileSync('compliance-report.json', 'utf8'));
+              
+              const comment = `## 🔒 HIPAA Compliance Check Results
+              
+              **Overall Status**: ${report.overall_status === 'pass' ? '✅ PASS' : '❌ FAIL'}
+              **Compliance Score**: ${report.summary.compliance_score}%
+              **Total Findings**: ${report.summary.total_findings}
+              
+              ### Priority Actions:
+              ${report.priority_actions.map(action => `- ${action}`).join('\n')}
+              
+              ### Key Findings:
+              ${Object.entries(report.checks).map(([check, result]) => 
+                `**${check}**: ${result.findings?.length || 0} issues`
+              ).join('\n')}
+              
+              ${report.overall_status !== 'pass' ? '⚠️ **Action Required**: Please address the findings before merging.' : ''}
+              `;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } catch (error) {
+              console.log('Could not parse compliance report:', error);
+            }
+
+  security-policy-check:
+    name: Security Policy Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for security policy files
+        run: |
+          echo "Checking for required security policy files..."
+          
+          # Check for SECURITY.md
+          if [ ! -f "SECURITY.md" ]; then
+            echo "❌ SECURITY.md file is missing"
+            exit 1
+          fi
+          
+          # Check for .github/dependabot.yml
+          if [ ! -f ".github/dependabot.yml" ]; then
+            echo "❌ Dependabot configuration is missing"
+            exit 1
+          fi
+          
+          # Check for security workflow
+          if [ ! -f ".github/workflows/security-scan.yml" ]; then
+            echo "❌ Security scanning workflow is missing"
+            exit 1
+          fi
+          
+          echo "✅ All required security policy files are present"
+
+  notify-security-team:
+    name: Notify Security Team
+    runs-on: ubuntu-latest
+    needs: [secret-scan, dependency-scan, container-scan, infrastructure-scan, compliance-check]
+    if: failure() && (github.ref == 'refs/heads/main' || github.event_name == 'schedule')
+    steps:
+      - name: Send Slack notification on security issues
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          channel: '#security-alerts'
+          text: |
+            🚨 Security scan failed for Medeez repository
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Actor: ${{ github.actor }}
+            
+            Please review the security findings immediately.
+            
+            Workflow: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_SECURITY_WEBHOOK_URL }}
+
+      - name: Create security issue on failure
+        if: github.ref == 'refs/heads/main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `Security scan failure - ${new Date().toISOString().split('T')[0]}`;
+            const body = `
+            ## Security Scan Failure Alert
+            
+            A security scan has failed on the main branch. This requires immediate attention.
+            
+            **Details:**
+            - Branch: ${context.ref}
+            - Commit: ${context.sha}
+            - Workflow: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}
+            
+            **Required Actions:**
+            1. Review all security scan results
+            2. Address any high/critical vulnerabilities
+            3. Update dependencies as needed
+            4. Re-run security scans to verify fixes
+            
+            **Priority:** HIGH - Security Issue
+            `;
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['security', 'high-priority', 'bug']
+            });
+
+  generate-security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [secret-scan, dependency-scan, container-scan, infrastructure-scan, compliance-check]
+    if: always() && github.ref == 'refs/heads/main'
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Generate consolidated security report
+        run: |
+          echo "# Security Scan Report - $(date)" > security-report.md
+          echo "" >> security-report.md
+          echo "## Summary" >> security-report.md
+          echo "" >> security-report.md
+          echo "| Check | Status |" >> security-report.md
+          echo "|-------|--------|" >> security-report.md
+          echo "| Secret Scan | ${{ needs.secret-scan.result }} |" >> security-report.md
+          echo "| Dependency Scan | ${{ needs.dependency-scan.result }} |" >> security-report.md
+          echo "| Container Scan | ${{ needs.container-scan.result }} |" >> security-report.md
+          echo "| Infrastructure Scan | ${{ needs.infrastructure-scan.result }} |" >> security-report.md
+          echo "| Compliance Check | ${{ needs.compliance-check.result }} |" >> security-report.md
+          echo "" >> security-report.md
+          echo "## Detailed Reports" >> security-report.md
+          echo "" >> security-report.md
+          echo "Detailed reports are available as workflow artifacts." >> security-report.md
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v3
+        with:
+          name: consolidated-security-report
+          path: security-report.md
+          retention-days: 30
