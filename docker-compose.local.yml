@@ -1,0 +1,59 @@
+version: '3.8'
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: medeez-dynamodb-local
+    ports:
+      - "8000:8000"
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+    networks:
+      - medeez-dev
+    
+  minio:
+    image: minio/minio:latest
+    container_name: medeez-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - medeez-dev
+    
+  redis:
+    image: redis:7-alpine
+    container_name: medeez-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - medeez-dev
+    
+  postgres:
+    image: postgres:15-alpine
+    container_name: medeez-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: medeez_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./rds-audit-schema.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - medeez-dev
+
+volumes:
+  minio_data:
+  redis_data:
+  postgres_data:
+
+networks:
+  medeez-dev:
+    driver: bridge

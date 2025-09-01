@@ -23,6 +23,8 @@ interface ApiStackProps extends cdk.StackProps {
   s3Bucket: s3.Bucket;
   kmsKey: kms.Key;
   apiRole: iam.Role;
+  userPool?: cognito.UserPool;
+  userPoolClient?: cognito.UserPoolClient;
 }
 
 export class ApiStack extends cdk.Stack {
@@ -35,10 +37,10 @@ export class ApiStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
-    const { environment, config, dynamoTable, s3Bucket, kmsKey, apiRole } = props;
+    const { environment, config, dynamoTable, s3Bucket, kmsKey, apiRole, userPool, userPoolClient } = props;
 
-    // Cognito User Pool for doctor authentication
-    this.userPool = new cognito.UserPool(this, 'MedeezUserPool', {
+    // Use provided Cognito User Pool or create new one
+    this.userPool = userPool || new cognito.UserPool(this, 'MedeezUserPool', {
       userPoolName: `medeez-${environment}-users`,
       selfSignUpEnabled: true,
       signInAliases: {
@@ -98,8 +100,8 @@ export class ApiStack extends cdk.Stack {
       removalPolicy: environment === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
     });
 
-    // User Pool Client
-    this.userPoolClient = new cognito.UserPoolClient(this, 'MedeezUserPoolClient', {
+    // Use provided User Pool Client or create new one
+    this.userPoolClient = userPoolClient || new cognito.UserPoolClient(this, 'MedeezUserPoolClient', {
       userPool: this.userPool,
       userPoolClientName: `medeez-${environment}-client`,
       generateSecret: false,
@@ -167,12 +169,13 @@ export class ApiStack extends cdk.Stack {
       reservedConcurrentExecutions: config.lambda.reservedConcurrency,
       tracing: lambda.Tracing.ACTIVE,
       insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_229_0,
-      deadLetterQueue: new sqs.Queue(this, 'ApiDLQ', {
-        queueName: `medeez-${environment}-api-dlq`,
-        encryption: sqs.QueueEncryption.KMS,
-        encryptionMasterKey: kmsKey,
-        retentionPeriod: cdk.Duration.days(14),
-      }),
+      // TODO: Add DLQ after resolving circular dependency
+      // deadLetterQueue: new sqs.Queue(this, 'ApiDLQ', {
+      //   queueName: `medeez-${environment}-api-dlq`,
+      //   encryption: sqs.QueueEncryption.KMS,
+      //   encryptionMasterKey: kmsKey,
+      //   retentionPeriod: cdk.Duration.days(14),
+      // }),
     });
 
     // Grant permissions to the API function

@@ -1,0 +1,29 @@
+{
+  "KeyId": "mock-kms-key-dev",
+  "Arn": "arn:aws:kms:us-east-1:123456789012:key/mock-kms-key-dev",
+  "CreationDate": "2025-09-01T05:37:56.805Z",
+  "Enabled": true,
+  "Description": "Medeez dev encryption key for PHI data",
+  "KeyUsage": "ENCRYPT_DECRYPT",
+  "KeySpec": "SYMMETRIC_DEFAULT",
+  "KeyState": "Enabled",
+  "Origin": "AWS_KMS",
+  "MultiRegion": false,
+  "Aliases": [
+    "alias/medeez-dev-key"
+  ],
+  "Tags": [
+    {
+      "TagKey": "Environment",
+      "TagValue": "dev"
+    },
+    {
+      "TagKey": "Project",
+      "TagValue": "Medeez"
+    },
+    {
+      "TagKey": "Purpose",
+      "TagValue": "Database Encryption"
+    }
+  ]
+}

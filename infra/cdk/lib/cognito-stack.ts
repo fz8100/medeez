@@ -415,11 +415,6 @@ export class CognitoStack extends cdk.Stack {
       refreshTokenValidity: cdk.Duration.days(7),
       accessTokenValidity: cdk.Duration.hours(1),
       idTokenValidity: cdk.Duration.hours(1),
-      tokenValidityUnits: {
-        refreshToken: cognito.TokenValidityUnits.DAYS,
-        accessToken: cognito.TokenValidityUnits.HOURS,
-        idToken: cognito.TokenValidityUnits.HOURS,
-      },
       preventUserExistenceErrors: true,
       enableTokenRevocation: true,
       readAttributes: new cognito.ClientAttributes()

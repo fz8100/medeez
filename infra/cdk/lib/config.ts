@@ -3,6 +3,7 @@ export interface EnvironmentConfig {
   domainName?: string;
   certificateArn?: string;
   hostedZoneId?: string;
+  allowedOrigins: string[];
   dynamodb: {
     billingMode: 'PAY_PER_REQUEST' | 'PROVISIONED';
     pointInTimeRecovery: boolean;
@@ -43,6 +44,7 @@ export interface EnvironmentConfig {
 }
 
 const baseConfig: Omit<EnvironmentConfig, 'environment' | 'domainName' | 'certificateArn' | 'hostedZoneId'> = {
+  allowedOrigins: ['http://localhost:3000'],
   dynamodb: {
     billingMode: 'PAY_PER_REQUEST',
     pointInTimeRecovery: true,
@@ -88,6 +90,11 @@ export function getEnvironmentConfig(environment: string): EnvironmentConfig {
     dev: {
       environment: 'dev',
       domainName: 'dev.medeez.com',
+      allowedOrigins: ['http://localhost:3000', 'https://dev.medeez.com'],
+      dynamodb: {
+        ...baseConfig.dynamodb,
+        encryption: false, // Disable customer-managed encryption for dev to avoid circular dependency
+      },
       lambda: {
         ...baseConfig.lambda,
         memorySize: 512,
@@ -124,6 +131,7 @@ export function getEnvironmentConfig(environment: string): EnvironmentConfig {
     staging: {
       environment: 'staging',
       domainName: 'staging.medeez.com',
+      allowedOrigins: ['https://staging.medeez.com'],
       lambda: {
         ...baseConfig.lambda,
         memorySize: 768,
@@ -152,6 +160,7 @@ export function getEnvironmentConfig(environment: string): EnvironmentConfig {
     prod: {
       environment: 'prod',
       domainName: 'medeez.com',
+      allowedOrigins: ['https://medeez.com'],
       lambda: {
         ...baseConfig.lambda,
         memorySize: 1024,

@@ -1,0 +1,20 @@
+{
+  "/medeez/dev/dynamo/table-name": {
+    "Name": "/medeez/dev/dynamo/table-name",
+    "Value": "medeez-dev-app",
+    "Type": "String",
+    "Description": "DynamoDB table name"
+  },
+  "/medeez/dev/s3/bucket-name": {
+    "Name": "/medeez/dev/s3/bucket-name",
+    "Value": "medeez-dev-attachments-local",
+    "Type": "String",
+    "Description": "S3 bucket name for attachments"
+  },
+  "/medeez/dev/kms/key-id": {
+    "Name": "/medeez/dev/kms/key-id",
+    "Value": "mock-kms-key-dev",
+    "Type": "String",
+    "Description": "KMS key ID for encryption"
+  }
+}

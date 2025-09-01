@@ -24,6 +24,54 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 200 98% 39%;
     --radius: 0.5rem;
+
+    /* Medical theme colors */
+    --medical-50: 209 100% 97%;
+    --medical-100: 209 95% 90%;
+    --medical-200: 209 87% 80%;
+    --medical-300: 209 84% 70%;
+    --medical-400: 209 82% 60%;
+    --medical-500: 209 80% 50%;
+    --medical-600: 209 78% 40%;
+    --medical-700: 209 76% 30%;
+    --medical-800: 209 74% 20%;
+    --medical-900: 209 72% 10%;
+
+    /* Success colors */
+    --success-50: 142 76% 95%;
+    --success-100: 142 76% 88%;
+    --success-200: 142 69% 78%;
+    --success-300: 142 69% 68%;
+    --success-400: 142 69% 58%;
+    --success-500: 142 69% 48%;
+    --success-600: 142 72% 29%;
+    --success-700: 142 72% 20%;
+    --success-800: 142 84% 10%;
+    --success-900: 142 84% 5%;
+
+    /* Warning colors */
+    --warning-50: 48 100% 96%;
+    --warning-100: 48 96% 89%;
+    --warning-200: 48 97% 77%;
+    --warning-300: 46 97% 65%;
+    --warning-400: 43 96% 56%;
+    --warning-500: 38 92% 50%;
+    --warning-600: 32 95% 44%;
+    --warning-700: 26 90% 37%;
+    --warning-800: 23 83% 31%;
+    --warning-900: 22 78% 26%;
+
+    /* Error colors */
+    --error-50: 0 86% 97%;
+    --error-100: 0 93% 94%;
+    --error-200: 0 96% 89%;
+    --error-300: 0 94% 82%;
+    --error-400: 0 91% 71%;
+    --error-500: 0 84% 60%;
+    --error-600: 0 72% 51%;
+    --error-700: 0 74% 42%;
+    --error-800: 0 70% 35%;
+    --error-900: 0 63% 31%;
   }
 
   .dark {

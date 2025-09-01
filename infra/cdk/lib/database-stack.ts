@@ -11,7 +11,7 @@ import { EnvironmentConfig } from './config';
 interface DatabaseStackProps extends cdk.StackProps {
   environment: string;
   config: EnvironmentConfig;
-  kmsKey: kms.Key;
+  kmsKey?: kms.IKey;
 }
 
 export class DatabaseStack extends cdk.Stack {
@@ -42,8 +42,7 @@ export class DatabaseStack extends cdk.Stack {
         ? dynamodb.TableEncryption.CUSTOMER_MANAGED 
         : dynamodb.TableEncryption.DEFAULT,
       encryptionKey: config.dynamodb.encryption ? kmsKey : undefined,
-      pointInTimeRecoveryEnabled: config.dynamodb.pointInTimeRecovery,
-      contributorInsights: environment === 'prod',
+      pointInTimeRecovery: config.dynamodb.pointInTimeRecovery,
       removalPolicy: environment === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       timeToLiveAttribute: 'ttl',
       stream: dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
@@ -223,7 +222,7 @@ export class DatabaseStack extends cdk.Stack {
       `),
       environment: {
         DYNAMO_TABLE_NAME: this.dynamoTable.tableName,
-        KMS_KEY_ID: kmsKey.keyId,
+        KMS_KEY_ID: kmsKey?.keyId || 'default',
         ENVIRONMENT: environment,
       },
       timeout: cdk.Duration.minutes(5),
@@ -232,7 +231,9 @@ export class DatabaseStack extends cdk.Stack {
 
     // Grant permissions to the S3 event processor
     this.dynamoTable.grantReadWriteData(s3EventProcessor);
-    kmsKey.grantEncryptDecrypt(s3EventProcessor);
+    if (kmsKey) {
+      kmsKey.grantEncryptDecrypt(s3EventProcessor);
+    }
 
     // Add S3 event notification
     this.s3Bucket.addEventNotification(
@@ -277,6 +278,9 @@ export class DatabaseStack extends cdk.Stack {
       timeout: cdk.Duration.minutes(5),
       memorySize: 256,
     });
+
+    // Grant permissions for DynamoDB Stream access
+    this.dynamoTable.grantStreamRead(streamProcessor);
 
     // Add DynamoDB Stream event source
     streamProcessor.addEventSourceMapping('StreamEventSourceMapping', {

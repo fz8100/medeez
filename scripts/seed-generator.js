@@ -21,8 +21,18 @@ class SeedDataGenerator {
         this.region = region;
         this.tableName = `medeez-${environment}-app`;
         
-        // Initialize services
-        this.dynamoClient = new DynamoDBClient({ region });
+        // Initialize services with local development support
+        const dynamoConfig = { region };
+        if (environment === 'dev') {
+            // Use local DynamoDB endpoint for development
+            dynamoConfig.endpoint = process.env.DYNAMODB_ENDPOINT || 'http://localhost:8000';
+            dynamoConfig.credentials = {
+                accessKeyId: 'fake',
+                secretAccessKey: 'fake'
+            };
+        }
+        
+        this.dynamoClient = new DynamoDBClient(dynamoConfig);
         this.docClient = DynamoDBDocumentClient.from(this.dynamoClient);
         this.encryptionService = new EnhancedEncryptionService(environment, region);
         this.rdsConnection = new RDSConnection(environment, region);

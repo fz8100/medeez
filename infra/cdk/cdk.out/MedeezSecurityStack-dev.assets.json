@@ -1,0 +1,21 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "380838448d7d637a05431872df1210dd191d865e7f90e9be10f183828b55b905": {
+      "displayName": "MedeezSecurityStack-dev Template",
+      "source": {
+        "path": "MedeezSecurityStack-dev.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "777402107692-us-east-1-0f46e59a": {
+          "bucketName": "cdk-hnb659fds-assets-777402107692-us-east-1",
+          "objectKey": "380838448d7d637a05431872df1210dd191d865e7f90e9be10f183828b55b905.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::777402107692:role/cdk-hnb659fds-file-publishing-role-777402107692-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

@@ -1,0 +1,35 @@
+{
+  "environment": "dev",
+  "region": "us-east-1",
+  "setup": {
+    "date": "2025-09-01T05:37:56.806Z",
+    "version": "2.0.0",
+    "type": "local-development"
+  },
+  "aws": {
+    "dynamodb": {
+      "tableName": "medeez-dev-app",
+      "region": "us-east-1"
+    },
+    "s3": {
+      "bucketName": "medeez-dev-attachments-local",
+      "region": "us-east-1"
+    },
+    "kms": {
+      "keyId": "mock-kms-key-dev",
+      "region": "us-east-1"
+    }
+  },
+  "database": {
+    "type": "dynamodb",
+    "encryption": true,
+    "backup": true,
+    "pointInTimeRecovery": true
+  },
+  "features": {
+    "encryption": true,
+    "audit": true,
+    "compliance": true,
+    "search": true
+  }
+}

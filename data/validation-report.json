@@ -1,0 +1,482 @@
+{
+  "passed": 44,
+  "failed": 0,
+  "warnings": 2,
+  "tests": [
+    {
+      "name": "Config File: dynamodb-table.json",
+      "passed": true,
+      "message": "Configuration file exists",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\data\\config\\dynamodb-table.json"
+      },
+      "timestamp": "2025-09-01T05:41:51.948Z"
+    },
+    {
+      "name": "Config File: s3-bucket.json",
+      "passed": true,
+      "message": "Configuration file exists",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\data\\config\\s3-bucket.json"
+      },
+      "timestamp": "2025-09-01T05:41:51.948Z"
+    },
+    {
+      "name": "Config File: kms-key.json",
+      "passed": true,
+      "message": "Configuration file exists",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\data\\config\\kms-key.json"
+      },
+      "timestamp": "2025-09-01T05:41:51.948Z"
+    },
+    {
+      "name": "Config File: environment.json",
+      "passed": true,
+      "message": "Configuration file exists",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\data\\config\\environment.json"
+      },
+      "timestamp": "2025-09-01T05:41:51.949Z"
+    },
+    {
+      "name": "Config File: parameter-store.json",
+      "passed": true,
+      "message": "Configuration file exists",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\data\\config\\parameter-store.json"
+      },
+      "timestamp": "2025-09-01T05:41:51.949Z"
+    },
+    {
+      "name": "Environment Variables",
+      "passed": true,
+      "message": "File exists",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\.env.local"
+      },
+      "timestamp": "2025-09-01T05:41:51.950Z"
+    },
+    {
+      "name": "Docker Compose",
+      "passed": true,
+      "message": "File exists",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\docker-compose.local.yml"
+      },
+      "timestamp": "2025-09-01T05:41:51.950Z"
+    },
+    {
+      "name": "Documentation",
+      "passed": true,
+      "message": "File exists",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\DATABASE_SETUP.md"
+      },
+      "timestamp": "2025-09-01T05:41:51.950Z"
+    },
+    {
+      "name": "DynamoDB Table Name",
+      "passed": true,
+      "message": "Valid table name: medeez-dev-app",
+      "details": {
+        "tableName": "medeez-dev-app"
+      },
+      "timestamp": "2025-09-01T05:41:51.951Z"
+    },
+    {
+      "name": "DynamoDB Key Schema",
+      "passed": {
+        "AttributeName": "SK",
+        "KeyType": "RANGE"
+      },
+      "message": "Valid partition and sort key configuration",
+      "details": {
+        "keySchema": [
+          {
+            "AttributeName": "PK",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "SK",
+            "KeyType": "RANGE"
+          }
+        ]
+      },
+      "timestamp": "2025-09-01T05:41:51.951Z"
+    },
+    {
+      "name": "DynamoDB GSI Configuration",
+      "passed": true,
+      "message": "All 5 GSIs configured correctly",
+      "details": {
+        "expected": [
+          "GSI1",
+          "GSI2",
+          "GSI3",
+          "GSI4",
+          "GSI5"
+        ],
+        "actual": [
+          "GSI1",
+          "GSI2",
+          "GSI3",
+          "GSI4",
+          "GSI5"
+        ]
+      },
+      "timestamp": "2025-09-01T05:41:51.951Z"
+    },
+    {
+      "name": "DynamoDB Encryption",
+      "passed": true,
+      "message": "Server-side encryption enabled",
+      "details": {
+        "sseSpec": {
+          "Enabled": true,
+          "SSEType": "KMS",
+          "KMSMasterKeyId": "mock-kms-key-dev"
+        }
+      },
+      "timestamp": "2025-09-01T05:41:51.951Z"
+    },
+    {
+      "name": "DynamoDB Streams",
+      "passed": true,
+      "message": "DynamoDB Streams enabled for audit logging",
+      "details": {
+        "streamSpec": {
+          "StreamEnabled": true,
+          "StreamViewType": "NEW_AND_OLD_IMAGES"
+        }
+      },
+      "timestamp": "2025-09-01T05:41:51.951Z"
+    },
+    {
+      "name": "DynamoDB TTL",
+      "passed": true,
+      "message": "TTL configured for automatic cleanup",
+      "details": {
+        "ttlSpec": {
+          "AttributeName": "ttl",
+          "Enabled": true
+        }
+      },
+      "timestamp": "2025-09-01T05:41:51.951Z"
+    },
+    {
+      "name": "GSI Pattern: GSI1_PATTERNS",
+      "passed": true,
+      "message": "Query pattern defined",
+      "details": {
+        "pattern": "GSI1_PATTERNS"
+      },
+      "timestamp": "2025-09-01T05:41:51.952Z"
+    },
+    {
+      "name": "GSI Pattern: GSI2_PATTERNS",
+      "passed": true,
+      "message": "Query pattern defined",
+      "details": {
+        "pattern": "GSI2_PATTERNS"
+      },
+      "timestamp": "2025-09-01T05:41:51.952Z"
+    },
+    {
+      "name": "GSI Pattern: GSI3_PATTERNS",
+      "passed": true,
+      "message": "Query pattern defined",
+      "details": {
+        "pattern": "GSI3_PATTERNS"
+      },
+      "timestamp": "2025-09-01T05:41:51.952Z"
+    },
+    {
+      "name": "GSI Pattern: GSI4_PATTERNS",
+      "passed": true,
+      "message": "Query pattern defined",
+      "details": {
+        "pattern": "GSI4_PATTERNS"
+      },
+      "timestamp": "2025-09-01T05:41:51.952Z"
+    },
+    {
+      "name": "GSI Pattern: GSI5_PATTERNS",
+      "passed": true,
+      "message": "Query pattern defined",
+      "details": {
+        "pattern": "GSI5_PATTERNS"
+      },
+      "timestamp": "2025-09-01T05:41:51.952Z"
+    },
+    {
+      "name": "GSI Query Helper",
+      "passed": true,
+      "message": "Query helper class available",
+      "details": {},
+      "timestamp": "2025-09-01T05:41:51.952Z"
+    },
+    {
+      "name": "Seed Data Format",
+      "passed": true,
+      "message": "67 items in seed data",
+      "details": {
+        "itemCount": 67
+      },
+      "timestamp": "2025-09-01T05:41:51.953Z"
+    },
+    {
+      "name": "Entity Types",
+      "passed": true,
+      "message": "All required entity types present",
+      "details": {
+        "required": [
+          "CLINIC",
+          "USER",
+          "PATIENT",
+          "APPOINTMENT"
+        ],
+        "actual": [
+          "CLINIC",
+          "USER",
+          "PATIENT",
+          "APPOINTMENT"
+        ]
+      },
+      "timestamp": "2025-09-01T05:41:51.953Z"
+    },
+    {
+      "name": "DynamoDB Key Structure",
+      "passed": true,
+      "message": "All sampled items have valid PK/SK structure",
+      "details": {
+        "validCount": 10,
+        "sampleSize": 10
+      },
+      "timestamp": "2025-09-01T05:41:51.953Z"
+    },
+    {
+      "name": "GSI Structure",
+      "passed": true,
+      "message": "10 items have GSI1 structure",
+      "details": {
+        "gsiItems": 10
+      },
+      "timestamp": "2025-09-01T05:41:51.953Z"
+    },
+    {
+      "name": "Data Relationships",
+      "passed": true,
+      "message": "All entity types present with relationships",
+      "details": {
+        "clinics": 2,
+        "users": 6,
+        "patients": 20,
+        "appointments": 39
+      },
+      "timestamp": "2025-09-01T05:41:51.954Z"
+    },
+    {
+      "name": "KMS Configuration",
+      "passed": true,
+      "message": "KMS key properly configured",
+      "details": {
+        "keyId": "mock-kms-key-dev",
+        "enabled": true
+      },
+      "timestamp": "2025-09-01T05:41:51.954Z"
+    },
+    {
+      "name": "Encryption Service",
+      "passed": true,
+      "message": "Encryption service available",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\scripts\\enhanced-encryption.js"
+      },
+      "timestamp": "2025-09-01T05:41:51.954Z"
+    },
+    {
+      "name": "Encryption Validation",
+      "passed": null,
+      "warning": true,
+      "message": "Encryption validation method not available",
+      "details": {},
+      "timestamp": "2025-09-01T05:41:52.195Z"
+    },
+    {
+      "name": "JWT Secret Configuration",
+      "passed": true,
+      "message": "JWT secret configured",
+      "details": {
+        "configured": true
+      },
+      "timestamp": "2025-09-01T05:41:52.196Z"
+    },
+    {
+      "name": "Encryption Key Configuration",
+      "passed": true,
+      "message": "Encryption key configured",
+      "details": {
+        "configured": true
+      },
+      "timestamp": "2025-09-01T05:41:52.196Z"
+    },
+    {
+      "name": "Compliance Mode",
+      "passed": true,
+      "message": "Compliance mode enabled",
+      "details": {
+        "enabled": true
+      },
+      "timestamp": "2025-09-01T05:41:52.196Z"
+    },
+    {
+      "name": "Audit Logging Service",
+      "passed": true,
+      "message": "Audit logging service available",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\scripts\\rds-connection.js"
+      },
+      "timestamp": "2025-09-01T05:41:52.196Z"
+    },
+    {
+      "name": "DynamoDB Billing Mode",
+      "passed": true,
+      "message": "On-demand billing for automatic scaling",
+      "details": {
+        "billingMode": "PAY_PER_REQUEST"
+      },
+      "timestamp": "2025-09-01T05:41:52.196Z"
+    },
+    {
+      "name": "GSI Projection Configuration",
+      "passed": true,
+      "message": "GSI projections properly configured",
+      "details": {
+        "projections": [
+          "ALL",
+          "ALL",
+          "ALL",
+          "ALL",
+          "ALL"
+        ]
+      },
+      "timestamp": "2025-09-01T05:41:52.196Z"
+    },
+    {
+      "name": "GSI Projections",
+      "passed": null,
+      "warning": true,
+      "message": "ALL projections detected in development - optimize for production",
+      "details": {},
+      "timestamp": "2025-09-01T05:41:52.196Z"
+    },
+    {
+      "name": "Point-in-Time Recovery",
+      "passed": true,
+      "message": "PITR enabled for data recovery",
+      "details": {
+        "pitr": {
+          "PointInTimeRecoveryEnabled": true
+        }
+      },
+      "timestamp": "2025-09-01T05:41:52.197Z"
+    },
+    {
+      "name": "S3 Versioning",
+      "passed": true,
+      "message": "S3 versioning enabled for file recovery",
+      "details": {
+        "versioning": {
+          "Status": "Enabled"
+        }
+      },
+      "timestamp": "2025-09-01T05:41:52.197Z"
+    },
+    {
+      "name": "S3 Lifecycle Management",
+      "passed": true,
+      "message": "Lifecycle rules configured for cost optimization",
+      "details": {
+        "rules": 2
+      },
+      "timestamp": "2025-09-01T05:41:52.197Z"
+    },
+    {
+      "name": "Database Setup Documentation",
+      "passed": true,
+      "message": "Documentation exists",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\DATABASE_SETUP.md"
+      },
+      "timestamp": "2025-09-01T05:41:52.197Z"
+    },
+    {
+      "name": "Database Setup Documentation - HIPAA Reference",
+      "passed": true,
+      "message": "HIPAA compliance mentioned",
+      "details": {
+        "hasReference": true
+      },
+      "timestamp": "2025-09-01T05:41:52.197Z"
+    },
+    {
+      "name": "Cognito Deployment Guide",
+      "passed": true,
+      "message": "Documentation exists",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\COGNITO_DEPLOYMENT_GUIDE.md"
+      },
+      "timestamp": "2025-09-01T05:41:52.197Z"
+    },
+    {
+      "name": "Cognito Deployment Guide - HIPAA Reference",
+      "passed": true,
+      "message": "HIPAA compliance mentioned",
+      "details": {
+        "hasReference": true
+      },
+      "timestamp": "2025-09-01T05:41:52.198Z"
+    },
+    {
+      "name": "Compliance Feature Flag",
+      "passed": true,
+      "message": "Compliance features enabled",
+      "details": {
+        "enabled": true
+      },
+      "timestamp": "2025-09-01T05:41:52.198Z"
+    },
+    {
+      "name": "API Types Definition",
+      "passed": true,
+      "message": "API types available for integration",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\apps\\api\\src\\types\\index.ts"
+      },
+      "timestamp": "2025-09-01T05:41:52.198Z"
+    },
+    {
+      "name": "Base Repository",
+      "passed": true,
+      "message": "Base repository available for data access",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\apps\\api\\src\\repositories\\base.ts"
+      },
+      "timestamp": "2025-09-01T05:41:52.198Z"
+    },
+    {
+      "name": "Local Docker Setup",
+      "passed": true,
+      "message": "Docker Compose available for local development",
+      "details": {
+        "path": "C:\\Saas\\Medeez v2\\docker-compose.local.yml"
+      },
+      "timestamp": "2025-09-01T05:41:52.199Z"
+    }
+  ],
+  "environment": "dev",
+  "duration": 0.252,
+  "passRate": "100.0",
+  "timestamp": "2025-09-01T05:41:52.199Z"
+}

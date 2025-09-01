@@ -1,0 +1,889 @@
+{
+ "Resources": {
+  "MedeezKMSKeyB07EBCB9": {
+   "Type": "AWS::KMS::Key",
+   "Properties": {
+    "Description": "KMS key for Medeez dev environment",
+    "EnableKeyRotation": true,
+    "KeyPolicy": {
+     "Statement": [
+      {
+       "Action": "kms:*",
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": "arn:aws:iam::777402107692:root"
+       },
+       "Resource": "*",
+       "Sid": "EnableIAMUserPermissions"
+      },
+      {
+       "Action": [
+        "kms:Decrypt",
+        "kms:DescribeKey",
+        "kms:Encrypt",
+        "kms:GenerateDataKey*",
+        "kms:ReEncrypt*"
+       ],
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "logs.us-east-1.amazonaws.com"
+       },
+       "Resource": "*",
+       "Sid": "AllowCloudWatchLogs"
+      },
+      {
+       "Action": [
+        "kms:CreateGrant",
+        "kms:Decrypt",
+        "kms:DescribeKey",
+        "kms:Encrypt",
+        "kms:GenerateDataKey*",
+        "kms:ReEncrypt*"
+       ],
+       "Condition": {
+        "StringEquals": {
+         "kms:ViaService": "secretsmanager.us-east-1.amazonaws.com"
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "AWS": "arn:aws:iam::777402107692:root"
+       },
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "RotationPeriodInDays": 365,
+    "Tags": [
+     {
+      "Key": "Compliance",
+      "Value": "HIPAA"
+     },
+     {
+      "Key": "CostCenter",
+      "Value": "Engineering"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "Medeez"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/MedeezKMSKey/Resource"
+   }
+  },
+  "MedeezKMSKeyAlias207827BF": {
+   "Type": "AWS::KMS::Alias",
+   "Properties": {
+    "AliasName": "alias/medeez-dev-key",
+    "TargetKeyId": {
+     "Fn::GetAtt": [
+      "MedeezKMSKeyB07EBCB9",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/MedeezKMSKey/Alias/Resource"
+   }
+  },
+  "ApiRole1873F438": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Description": "IAM role for Medeez API Lambda functions",
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     },
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/AWSXRayDaemonWriteAccess"
+       ]
+      ]
+     }
+    ],
+    "Policies": [
+     {
+      "PolicyDocument": {
+       "Statement": [
+        {
+         "Action": [
+          "dynamodb:BatchGetItem",
+          "dynamodb:BatchWriteItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:DescribeStream",
+          "dynamodb:GetItem",
+          "dynamodb:GetRecords",
+          "dynamodb:GetShardIterator",
+          "dynamodb:ListStreams",
+          "dynamodb:PutItem",
+          "dynamodb:Query",
+          "dynamodb:Scan",
+          "dynamodb:UpdateItem"
+         ],
+         "Effect": "Allow",
+         "Resource": [
+          "arn:aws:dynamodb:us-east-1:777402107692:table/medeez-dev-*",
+          "arn:aws:dynamodb:us-east-1:777402107692:table/medeez-dev-*/index/*",
+          "arn:aws:dynamodb:us-east-1:777402107692:table/medeez-dev-*/stream/*"
+         ]
+        }
+       ],
+       "Version": "2012-10-17"
+      },
+      "PolicyName": "DynamoDBPolicy"
+     },
+     {
+      "PolicyDocument": {
+       "Statement": [
+        {
+         "Action": [
+          "s3:AbortMultipartUpload",
+          "s3:DeleteObject",
+          "s3:GetObject",
+          "s3:GetObjectAcl",
+          "s3:GetObjectVersion",
+          "s3:ListMultipartUploadParts",
+          "s3:PutObject",
+          "s3:PutObjectAcl"
+         ],
+         "Effect": "Allow",
+         "Resource": "arn:aws:s3:::medeez-dev-*/*"
+        },
+        {
+         "Action": [
+          "s3:GetBucketLocation",
+          "s3:GetBucketVersioning",
+          "s3:ListBucket"
+         ],
+         "Effect": "Allow",
+         "Resource": "arn:aws:s3:::medeez-dev-*"
+        }
+       ],
+       "Version": "2012-10-17"
+      },
+      "PolicyName": "S3Policy"
+     },
+     {
+      "PolicyDocument": {
+       "Statement": [
+        {
+         "Action": [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:Encrypt",
+          "kms:GenerateDataKey*",
+          "kms:ReEncrypt*"
+         ],
+         "Effect": "Allow",
+         "Resource": {
+          "Fn::GetAtt": [
+           "MedeezKMSKeyB07EBCB9",
+           "Arn"
+          ]
+         }
+        }
+       ],
+       "Version": "2012-10-17"
+      },
+      "PolicyName": "KMSPolicy"
+     },
+     {
+      "PolicyDocument": {
+       "Statement": [
+        {
+         "Action": [
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:GetSecretValue"
+         ],
+         "Effect": "Allow",
+         "Resource": "arn:aws:secretsmanager:us-east-1:777402107692:secret:medeez-dev-*"
+        }
+       ],
+       "Version": "2012-10-17"
+      },
+      "PolicyName": "SecretsManagerPolicy"
+     },
+     {
+      "PolicyDocument": {
+       "Statement": [
+        {
+         "Action": [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:GetParametersByPath"
+         ],
+         "Effect": "Allow",
+         "Resource": "arn:aws:ssm:us-east-1:777402107692:parameter/medeez/dev/*"
+        }
+       ],
+       "Version": "2012-10-17"
+      },
+      "PolicyName": "SSMPolicy"
+     },
+     {
+      "PolicyDocument": {
+       "Statement": [
+        {
+         "Action": [
+          "cloudwatch:PutMetricData",
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+         ],
+         "Effect": "Allow",
+         "Resource": "*"
+        }
+       ],
+       "Version": "2012-10-17"
+      },
+      "PolicyName": "CloudWatchPolicy"
+     },
+     {
+      "PolicyDocument": {
+       "Statement": [
+        {
+         "Action": "events:PutEvents",
+         "Effect": "Allow",
+         "Resource": "arn:aws:events:us-east-1:777402107692:event-bus/medeez-dev-*"
+        }
+       ],
+       "Version": "2012-10-17"
+      },
+      "PolicyName": "EventBridgePolicy"
+     }
+    ],
+    "RoleName": "medeez-dev-api-role",
+    "Tags": [
+     {
+      "Key": "Compliance",
+      "Value": "HIPAA"
+     },
+     {
+      "Key": "CostCenter",
+      "Value": "Engineering"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "Medeez"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/ApiRole/Resource"
+   }
+  },
+  "JwtSecretB8834B39": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "JWT signing secret for authentication tokens",
+    "GenerateSecretString": {
+     "ExcludeCharacters": " %+~`#$&*()|[]{}:;<>?!'/@\"\\",
+     "GenerateStringKey": "secret",
+     "PasswordLength": 64,
+     "SecretStringTemplate": "{}"
+    },
+    "KmsKeyId": {
+     "Fn::GetAtt": [
+      "MedeezKMSKeyB07EBCB9",
+      "Arn"
+     ]
+    },
+    "Name": "medeez-dev-jwt-secret",
+    "Tags": [
+     {
+      "Key": "Compliance",
+      "Value": "HIPAA"
+     },
+     {
+      "Key": "CostCenter",
+      "Value": "Engineering"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "Medeez"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/JwtSecret/Resource"
+   }
+  },
+  "EncryptionKey1B843E66": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Encryption key for PHI data at application level",
+    "GenerateSecretString": {
+     "ExcludeCharacters": " %+~`#$&*()|[]{}:;<>?!'/@\"\\",
+     "GenerateStringKey": "key",
+     "PasswordLength": 32,
+     "SecretStringTemplate": "{}"
+    },
+    "KmsKeyId": {
+     "Fn::GetAtt": [
+      "MedeezKMSKeyB07EBCB9",
+      "Arn"
+     ]
+    },
+    "Name": "medeez-dev-encryption-key",
+    "Tags": [
+     {
+      "Key": "Compliance",
+      "Value": "HIPAA"
+     },
+     {
+      "Key": "CostCenter",
+      "Value": "Engineering"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "Medeez"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/EncryptionKey/Resource"
+   }
+  },
+  "SessionSecretC41FBD23": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Session signing secret for web sessions",
+    "GenerateSecretString": {
+     "ExcludeCharacters": " %+~`#$&*()|[]{}:;<>?!'/@\"\\",
+     "GenerateStringKey": "secret",
+     "PasswordLength": 64,
+     "SecretStringTemplate": "{}"
+    },
+    "KmsKeyId": {
+     "Fn::GetAtt": [
+      "MedeezKMSKeyB07EBCB9",
+      "Arn"
+     ]
+    },
+    "Name": "medeez-dev-session-secret",
+    "Tags": [
+     {
+      "Key": "Compliance",
+      "Value": "HIPAA"
+     },
+     {
+      "Key": "CostCenter",
+      "Value": "Engineering"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "Medeez"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/SessionSecret/Resource"
+   }
+  },
+  "WebhookSecretF21E29CC": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Secret for webhook signature verification",
+    "GenerateSecretString": {
+     "ExcludeCharacters": " %+~`#$&*()|[]{}:;<>?!'/@\"\\",
+     "GenerateStringKey": "secret",
+     "PasswordLength": 32,
+     "SecretStringTemplate": "{}"
+    },
+    "KmsKeyId": {
+     "Fn::GetAtt": [
+      "MedeezKMSKeyB07EBCB9",
+      "Arn"
+     ]
+    },
+    "Name": "medeez-dev-webhook-secret",
+    "Tags": [
+     {
+      "Key": "Compliance",
+      "Value": "HIPAA"
+     },
+     {
+      "Key": "CostCenter",
+      "Value": "Engineering"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "Medeez"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/WebhookSecret/Resource"
+   }
+  },
+  "TwilioSecretA2B44BC3": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Twilio API credentials for SMS/voice",
+    "KmsKeyId": {
+     "Fn::GetAtt": [
+      "MedeezKMSKeyB07EBCB9",
+      "Arn"
+     ]
+    },
+    "Name": "medeez-dev-twilio",
+    "SecretString": "{\"account_sid\":\"PLACEHOLDER_ACCOUNT_SID\",\"auth_token\":\"PLACEHOLDER_AUTH_TOKEN\",\"phone_number\":\"PLACEHOLDER_PHONE_NUMBER\"}",
+    "Tags": [
+     {
+      "Key": "Compliance",
+      "Value": "HIPAA"
+     },
+     {
+      "Key": "CostCenter",
+      "Value": "Engineering"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "Medeez"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/TwilioSecret/Resource"
+   }
+  },
+  "StripeSecret80A38A68": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Stripe API credentials for payment processing",
+    "KmsKeyId": {
+     "Fn::GetAtt": [
+      "MedeezKMSKeyB07EBCB9",
+      "Arn"
+     ]
+    },
+    "Name": "medeez-dev-stripe",
+    "SecretString": "{\"publishable_key\":\"PLACEHOLDER_PUBLISHABLE_KEY\",\"secret_key\":\"PLACEHOLDER_SECRET_KEY\",\"webhook_secret\":\"PLACEHOLDER_WEBHOOK_SECRET\"}",
+    "Tags": [
+     {
+      "Key": "Compliance",
+      "Value": "HIPAA"
+     },
+     {
+      "Key": "CostCenter",
+      "Value": "Engineering"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "Medeez"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/StripeSecret/Resource"
+   }
+  },
+  "PaddleSecret10AE1BB4": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Paddle API credentials for subscription management",
+    "KmsKeyId": {
+     "Fn::GetAtt": [
+      "MedeezKMSKeyB07EBCB9",
+      "Arn"
+     ]
+    },
+    "Name": "medeez-dev-paddle",
+    "SecretString": "{\"vendor_id\":\"PLACEHOLDER_VENDOR_ID\",\"api_key\":\"PLACEHOLDER_API_KEY\",\"public_key\":\"PLACEHOLDER_PUBLIC_KEY\"}",
+    "Tags": [
+     {
+      "Key": "Compliance",
+      "Value": "HIPAA"
+     },
+     {
+      "Key": "CostCenter",
+      "Value": "Engineering"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "Medeez"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/PaddleSecret/Resource"
+   }
+  },
+  "GoogleSecretE1CA5A57": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Google API credentials for calendar and maps integration",
+    "KmsKeyId": {
+     "Fn::GetAtt": [
+      "MedeezKMSKeyB07EBCB9",
+      "Arn"
+     ]
+    },
+    "Name": "medeez-dev-google",
+    "SecretString": "{\"client_id\":\"PLACEHOLDER_CLIENT_ID\",\"client_secret\":\"PLACEHOLDER_CLIENT_SECRET\",\"maps_api_key\":\"PLACEHOLDER_MAPS_API_KEY\"}",
+    "Tags": [
+     {
+      "Key": "Compliance",
+      "Value": "HIPAA"
+     },
+     {
+      "Key": "CostCenter",
+      "Value": "Engineering"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "Medeez"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/GoogleSecret/Resource"
+   }
+  },
+  "SentrySecret70066C8D": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Sentry configuration for error tracking",
+    "KmsKeyId": {
+     "Fn::GetAtt": [
+      "MedeezKMSKeyB07EBCB9",
+      "Arn"
+     ]
+    },
+    "Name": "medeez-dev-sentry",
+    "SecretString": "{\"dsn\":\"PLACEHOLDER_SENTRY_DSN\",\"auth_token\":\"PLACEHOLDER_AUTH_TOKEN\"}",
+    "Tags": [
+     {
+      "Key": "Compliance",
+      "Value": "HIPAA"
+     },
+     {
+      "Key": "CostCenter",
+      "Value": "Engineering"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "Medeez"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/SentrySecret/Resource"
+   }
+  },
+  "DatabaseSecret86DBB7B3": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Database connection string for audit logs",
+    "KmsKeyId": {
+     "Fn::GetAtt": [
+      "MedeezKMSKeyB07EBCB9",
+      "Arn"
+     ]
+    },
+    "Name": "medeez-dev-database-url",
+    "SecretString": "{\"url\":\"PLACEHOLDER_DATABASE_URL\",\"host\":\"PLACEHOLDER_HOST\",\"port\":\"5432\",\"dbname\":\"PLACEHOLDER_DB_NAME\",\"username\":\"PLACEHOLDER_USERNAME\",\"password\":\"PLACEHOLDER_PASSWORD\"}",
+    "Tags": [
+     {
+      "Key": "Compliance",
+      "Value": "HIPAA"
+     },
+     {
+      "Key": "CostCenter",
+      "Value": "Engineering"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "Medeez"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/DatabaseSecret/Resource"
+   }
+  },
+  "KMSKeyIdParameterEC78A6D4": {
+   "Type": "AWS::SSM::Parameter",
+   "Properties": {
+    "Description": "KMS Key ID for encryption",
+    "Name": "/medeez/dev/kms/key-id",
+    "Tags": {
+     "Compliance": "HIPAA",
+     "CostCenter": "Engineering",
+     "Environment": "dev",
+     "ManagedBy": "CDK",
+     "Project": "Medeez"
+    },
+    "Type": "String",
+    "Value": {
+     "Ref": "MedeezKMSKeyB07EBCB9"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/KMSKeyIdParameter/Resource"
+   }
+  },
+  "KmsKeyArn536220E3": {
+   "Type": "AWS::SSM::Parameter",
+   "Properties": {
+    "Description": "KMS Key ARN for encryption",
+    "Name": "/medeez/dev/kms/key-arn",
+    "Tags": {
+     "Compliance": "HIPAA",
+     "CostCenter": "Engineering",
+     "Environment": "dev",
+     "ManagedBy": "CDK",
+     "Project": "Medeez"
+    },
+    "Type": "String",
+    "Value": {
+     "Fn::GetAtt": [
+      "MedeezKMSKeyB07EBCB9",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/KmsKeyArn/Resource"
+   }
+  },
+  "ApiRoleArnParameterAE5939DB": {
+   "Type": "AWS::SSM::Parameter",
+   "Properties": {
+    "Description": "API Lambda role ARN",
+    "Name": "/medeez/dev/iam/api-role-arn",
+    "Tags": {
+     "Compliance": "HIPAA",
+     "CostCenter": "Engineering",
+     "Environment": "dev",
+     "ManagedBy": "CDK",
+     "Project": "Medeez"
+    },
+    "Type": "String",
+    "Value": {
+     "Fn::GetAtt": [
+      "ApiRole1873F438",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/ApiRoleArnParameter/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/z2NQQ6CMBBFz8K+jFAXro1LFxo4gBnLSAq0NZ1WYpre3RQSV++//5MZCbI9QlPhyrUa5nrRT0h9QDULXPmRZsOQrvQVl5ctOC8aucgWstBoIHVuodIVZsGkPAU2aHEkD6nfvOx7yoLZlCde2/GOHg0F8mX/S86iI3bRq+3uLYZ3DFlYNxBMfPhICe0JmmpirWsfbdCGoNv5A6hh/D/SAAAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MedeezSecurityStack-dev/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "KMSKeyId": {
+   "Description": "KMS Key ID",
+   "Value": {
+    "Ref": "MedeezKMSKeyB07EBCB9"
+   },
+   "Export": {
+    "Name": "MedeezKmsKeyId-dev"
+   }
+  },
+  "ApiRoleArn": {
+   "Description": "API Lambda Role ARN",
+   "Value": {
+    "Fn::GetAtt": [
+     "ApiRole1873F438",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "MedeezApiRoleArn-dev"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

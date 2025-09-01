@@ -1,0 +1,184 @@
+{
+  "TableName": "medeez-dev-app",
+  "BillingMode": "PAY_PER_REQUEST",
+  "AttributeDefinitions": [
+    {
+      "AttributeName": "PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "SK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "GSI1PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "GSI1SK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "GSI2PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "GSI2SK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "GSI3PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "GSI3SK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "GSI4PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "GSI4SK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "GSI5PK",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "GSI5SK",
+      "AttributeType": "S"
+    }
+  ],
+  "KeySchema": [
+    {
+      "AttributeName": "PK",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "SK",
+      "KeyType": "RANGE"
+    }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "GSI1",
+      "KeySchema": [
+        {
+          "AttributeName": "GSI1PK",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "GSI1SK",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      }
+    },
+    {
+      "IndexName": "GSI2",
+      "KeySchema": [
+        {
+          "AttributeName": "GSI2PK",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "GSI2SK",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      }
+    },
+    {
+      "IndexName": "GSI3",
+      "KeySchema": [
+        {
+          "AttributeName": "GSI3PK",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "GSI3SK",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      }
+    },
+    {
+      "IndexName": "GSI4",
+      "KeySchema": [
+        {
+          "AttributeName": "GSI4PK",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "GSI4SK",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      }
+    },
+    {
+      "IndexName": "GSI5",
+      "KeySchema": [
+        {
+          "AttributeName": "GSI5PK",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "GSI5SK",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      }
+    }
+  ],
+  "SSESpecification": {
+    "Enabled": true,
+    "SSEType": "KMS",
+    "KMSMasterKeyId": "mock-kms-key-dev"
+  },
+  "PointInTimeRecoverySpecification": {
+    "PointInTimeRecoveryEnabled": true
+  },
+  "StreamSpecification": {
+    "StreamEnabled": true,
+    "StreamViewType": "NEW_AND_OLD_IMAGES"
+  },
+  "TimeToLiveSpecification": {
+    "AttributeName": "ttl",
+    "Enabled": true
+  },
+  "Tags": [
+    {
+      "Key": "Environment",
+      "Value": "dev"
+    },
+    {
+      "Key": "Project",
+      "Value": "Medeez"
+    },
+    {
+      "Key": "ManagedBy",
+      "Value": "LocalDatabaseSetup"
+    },
+    {
+      "Key": "Compliance",
+      "Value": "HIPAA"
+    }
+  ],
+  "CreatedDate": "2025-09-01T05:37:56.803Z",
+  "TableStatus": "ACTIVE",
+  "TableArn": "arn:aws:dynamodb:us-east-1:123456789012:table/medeez-dev-app",
+  "StreamArn": "arn:aws:dynamodb:us-east-1:123456789012:table/medeez-dev-app/stream/2024-01-01T00:00:00.000"
+}

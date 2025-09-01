@@ -1,0 +1,21 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "56ccf38c811aae163cdb819680ce42bed42c3af5fd59a76e28c262e3cfd7b039": {
+      "displayName": "MedeezDatabaseStack-dev Template",
+      "source": {
+        "path": "MedeezDatabaseStack-dev.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "777402107692-us-east-1-6f1fa8e6": {
+          "bucketName": "cdk-hnb659fds-assets-777402107692-us-east-1",
+          "objectKey": "56ccf38c811aae163cdb819680ce42bed42c3af5fd59a76e28c262e3cfd7b039.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::777402107692:role/cdk-hnb659fds-file-publishing-role-777402107692-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}
