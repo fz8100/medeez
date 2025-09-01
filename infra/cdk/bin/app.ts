@@ -113,25 +113,25 @@ const backupStack = new BackupStack(app, `MedeezBackupStack-${environment}`, {
 });
 
 // Output important values
-new cdk.CfnOutput(app.node, `MedeezApiUrl-${environment}`, {
+new cdk.CfnOutput(apiStack, `MedeezApiUrl-${environment}`, {
   value: apiStack.apiUrl,
   description: 'API Gateway URL',
   exportName: `MedeezApiUrl-${environment}`,
 });
 
-new cdk.CfnOutput(app.node, `MedeezWebUrl-${environment}`, {
+new cdk.CfnOutput(frontendStack, `MedeezWebUrl-${environment}`, {
   value: frontendStack.webUrl,
   description: 'CloudFront Distribution URL',
   exportName: `MedeezWebUrl-${environment}`,
 });
 
-new cdk.CfnOutput(app.node, `MedeezUserPoolId-${environment}`, {
+new cdk.CfnOutput(apiStack, `MedeezUserPoolId-${environment}`, {
   value: apiStack.userPool.userPoolId,
   description: 'Cognito User Pool ID',
   exportName: `MedeezUserPoolId-${environment}`,
 });
 
-new cdk.CfnOutput(app.node, `MedeezUserPoolClientId-${environment}`, {
+new cdk.CfnOutput(apiStack, `MedeezUserPoolClientId-${environment}`, {
   value: apiStack.userPoolClient.userPoolClientId,
   description: 'Cognito User Pool Client ID',
   exportName: `MedeezUserPoolClientId-${environment}`,

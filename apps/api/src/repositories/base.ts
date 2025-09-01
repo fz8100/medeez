@@ -44,9 +44,29 @@ export abstract class BaseRepository<T extends BaseEntity> {
   protected tableName: string;
 
   constructor() {
+    // AWS SDK v3 configuration with proper error handling
+    const region = process.env.AWS_REGION || 'us-east-1';
+    const tableName = process.env.DYNAMODB_TABLE_NAME || 'medeez-main';
+    
+    // Log configuration for debugging
+    logger.debug('Initializing DynamoDB client', {
+      region,
+      tableName,
+      environment: process.env.NODE_ENV
+    });
+
     const dynamoClient = new DynamoDBClient({
-      region: process.env.AWS_REGION || 'us-east-1',
-      maxAttempts: 3
+      region,
+      maxAttempts: 3,
+      retryMode: 'adaptive',
+      // Use IAM role in production, local credentials in development
+      ...(process.env.NODE_ENV === 'development' && {
+        endpoint: process.env.DYNAMODB_ENDPOINT,
+        credentials: process.env.AWS_PROFILE ? undefined : {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
+        }
+      })
     });
     
     this.client = DynamoDBDocumentClient.from(dynamoClient, {
@@ -60,7 +80,13 @@ export abstract class BaseRepository<T extends BaseEntity> {
       }
     });
     
-    this.tableName = process.env.DYNAMODB_TABLE_NAME || 'medeez-table';
+    this.tableName = tableName;
+
+    // Log successful initialization
+    logger.info('DynamoDB client initialized', {
+      tableName: this.tableName,
+      region
+    });
   }
 
   // Abstract methods to be implemented by child classes

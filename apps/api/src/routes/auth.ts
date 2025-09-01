@@ -1,519 +1,464 @@
 import { Router } from 'express';
-import { z } from 'zod';
-import { authRateLimiter, passwordResetRateLimiter, magicLinkRateLimiter } from '@/middleware/rateLimiter';
-import { logAuthEvent, logAdminAction } from '@/middleware/auditLogger';
-import { asyncHandler } from '@/middleware/errorHandler';
-import { AuthenticatedRequest, ValidationError, UnauthorizedError, NotFoundError } from '@/types';
+import { body, validationResult } from 'express-validator';
+import { AuthService } from '@/services/authService';
+import { authMiddleware, requireRole, optionalAuth } from '@/middleware/authMiddleware';
+import { rateLimiter } from '@/middleware/rateLimiter';
+import { 
+  LoginRequest, 
+  SignupRequest, 
+  ForgotPasswordRequest, 
+  ResetPasswordRequest,
+  RefreshTokenRequest,
+  MagicLinkRequest,
+  InviteUserRequest,
+  AuthenticatedRequest,
+  ValidationError,
+} from '@/types';
 import { logger } from '@/utils/logger';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
+import { SESClient } from '@aws-sdk/client-ses';
 
 const router = Router();
 
-// Validation schemas
-const LoginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  clinicSlug: z.string().optional()
-});
+// Initialize services
+const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION });
+const docClient = DynamoDBDocumentClient.from(dynamoClient);
+const cognitoClient = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION });
+const sesClient = new SESClient({ region: process.env.AWS_REGION });
 
-const RegisterSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters')
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, 
-           'Password must contain uppercase, lowercase, number and special character'),
-  firstName: z.string().min(1, 'First name is required').max(50),
-  lastName: z.string().min(1, 'Last name is required').max(50),
-  clinicName: z.string().min(1, 'Clinic name is required').max(200),
-  npi: z.string().length(10).regex(/^\d{10}$/, 'Invalid NPI number'),
-  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number'),
-  acceptedTerms: z.boolean().refine(val => val === true, 'Terms must be accepted'),
-  acceptedHipaa: z.boolean().refine(val => val === true, 'HIPAA agreement must be accepted')
-});
+const authService = new AuthService(cognitoClient, docClient, sesClient);
 
-const ForgotPasswordSchema = z.object({
-  email: z.string().email('Invalid email address')
-});
+// Validation middleware
+const validateLogin = [
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('mfaCode').optional().isLength({ min: 6, max: 6 }).withMessage('MFA code must be 6 digits'),
+];
 
-const ResetPasswordSchema = z.object({
-  token: z.string().min(1, 'Reset token is required'),
-  newPassword: z.string().min(8, 'Password must be at least 8 characters')
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, 
-           'Password must contain uppercase, lowercase, number and special character'),
-  confirmPassword: z.string()
-}).refine(data => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ['confirmPassword']
-});
+const validateSignup = [
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('password')
+    .isLength({ min: 8 })
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .withMessage('Password must be at least 8 characters with uppercase, lowercase, number, and special character'),
+  body('firstName').isLength({ min: 1, max: 50 }).withMessage('First name is required'),
+  body('lastName').isLength({ min: 1, max: 50 }).withMessage('Last name is required'),
+  body('clinicName').optional().isLength({ min: 1, max: 100 }).withMessage('Clinic name must be valid'),
+  body('invitationCode').optional().isAlphanumeric().withMessage('Invalid invitation code format'),
+];
 
-const ChangePasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(8, 'Password must be at least 8 characters')
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, 
-           'Password must contain uppercase, lowercase, number and special character'),
-  confirmPassword: z.string()
-}).refine(data => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ['confirmPassword']
-});
+const validateForgotPassword = [
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+];
 
-const MagicLinkSchema = z.object({
-  identifier: z.string().min(1, 'Email or phone is required'),
-  type: z.enum(['email', 'phone'], { required_error: 'Type must be email or phone' }),
-  returnUrl: z.string().url().optional()
-});
+const validateResetPassword = [
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('confirmationCode').isLength({ min: 6, max: 10 }).withMessage('Confirmation code is required'),
+  body('newPassword')
+    .isLength({ min: 8 })
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .withMessage('Password must be at least 8 characters with uppercase, lowercase, number, and special character'),
+];
 
-/**
- * User login
- * POST /v1/auth/login
- */
-router.post('/login', 
-  authRateLimiter,
-  logAuthEvent('LOGIN'),
-  asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const validatedData = LoginSchema.parse(req.body);
-    
-    try {
-      // TODO: Implement Cognito login logic
-      // This would typically:
-      // 1. Call AWS Cognito InitiateAuth
-      // 2. Handle MFA if required
-      // 3. Return access/refresh tokens
-      // 4. Update last login timestamp
-      
-      // Placeholder response
-      const response = {
-        success: true,
-        data: {
-          accessToken: 'jwt-access-token',
-          refreshToken: 'jwt-refresh-token',
-          expiresIn: 3600,
-          user: {
-            id: 'user-id',
-            email: validatedData.email,
-            clinicId: 'clinic-id',
-            role: 'DOCTOR',
-            firstName: 'John',
-            lastName: 'Doe'
-          }
-        },
-        timestamp: new Date().toISOString()
-      };
+const validateRefreshToken = [
+  body('refreshToken').notEmpty().withMessage('Refresh token is required'),
+];
 
-      logger.info('User login successful', {
-        userId: response.data.user.id,
-        email: validatedData.email,
-        clinicId: response.data.user.clinicId
-      });
+const validateMagicLink = [
+  body('patientEmail').isEmail().normalizeEmail().withMessage('Valid patient email is required'),
+  body('clinicId').notEmpty().withMessage('Clinic ID is required'),
+  body('expiresIn').optional().isInt({ min: 300, max: 86400 }).withMessage('Expires in must be between 5 minutes and 24 hours'),
+];
 
-      res.json(response);
-      
-    } catch (error) {
-      logger.warn('Login failed', {
-        email: validatedData.email,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      throw new UnauthorizedError('Invalid credentials');
-    }
-  })
-);
+const validateInviteUser = [
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('firstName').isLength({ min: 1, max: 50 }).withMessage('First name is required'),
+  body('lastName').isLength({ min: 1, max: 50 }).withMessage('Last name is required'),
+  body('role').isIn(['Admin', 'Doctor', 'Staff']).withMessage('Valid role is required'),
+  body('permissions').optional().isArray().withMessage('Permissions must be an array'),
+  body('expiresIn').optional().isInt({ min: 3600, max: 604800 }).withMessage('Expires in must be between 1 hour and 7 days'),
+];
+
+// Helper function to handle validation errors
+const handleValidationErrors = (req: any, res: any, next: any) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Request validation failed',
+        details: errors.array(),
+      },
+      timestamp: new Date().toISOString(),
+    });
+  }
+  next();
+};
 
 /**
- * User registration (7-day free trial)
- * POST /v1/auth/register
+ * @route   POST /auth/login
+ * @desc    User login
+ * @access  Public
  */
-router.post('/register',
-  authRateLimiter,
-  logAuthEvent('LOGIN'),
-  asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const validatedData = RegisterSchema.parse(req.body);
-    
+router.post(
+  '/login',
+  rateLimiter({ windowMs: 15 * 60 * 1000, max: 5 }), // 5 attempts per 15 minutes
+  validateLogin,
+  handleValidationErrors,
+  async (req, res) => {
     try {
-      // TODO: Implement registration logic
-      // This would typically:
-      // 1. Check if email already exists
-      // 2. Create Cognito user
-      // 3. Create clinic record
-      // 4. Create user record
-      // 5. Setup 7-day trial
-      // 6. Send welcome email
-      
-      const response = {
-        success: true,
-        data: {
-          message: 'Registration successful. Please check your email to verify your account.',
-          userId: 'new-user-id',
-          clinicId: 'new-clinic-id',
-          trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        timestamp: new Date().toISOString()
-      };
-
-      logger.info('User registration successful', {
-        email: validatedData.email,
-        clinicName: validatedData.clinicName,
-        userId: response.data.userId
-      });
-
-      res.status(201).json(response);
-      
-    } catch (error) {
-      logger.error('Registration failed', {
-        email: validatedData.email,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      throw error;
-    }
-  })
-);
-
-/**
- * Refresh access token
- * POST /v1/auth/refresh
- */
-router.post('/refresh',
-  authRateLimiter,
-  asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const { refreshToken } = req.body;
-    
-    if (!refreshToken) {
-      throw new ValidationError('Refresh token is required');
-    }
-    
-    try {
-      // TODO: Implement token refresh logic
-      // This would typically:
-      // 1. Validate refresh token with Cognito
-      // 2. Generate new access token
-      // 3. Optionally rotate refresh token
-      
-      const response = {
-        success: true,
-        data: {
-          accessToken: 'new-jwt-access-token',
-          refreshToken: 'new-jwt-refresh-token',
-          expiresIn: 3600
-        },
-        timestamp: new Date().toISOString()
-      };
-
-      res.json(response);
-      
-    } catch (error) {
-      logger.warn('Token refresh failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      throw new UnauthorizedError('Invalid refresh token');
-    }
-  })
-);
-
-/**
- * User logout
- * POST /v1/auth/logout
- */
-router.post('/logout',
-  logAuthEvent('LOGOUT'),
-  asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const { refreshToken } = req.body;
-    
-    try {
-      // TODO: Implement logout logic
-      // This would typically:
-      // 1. Revoke refresh token in Cognito
-      // 2. Add access token to blacklist
-      // 3. Clear session data
-      
-      logger.info('User logout successful', {
-        userId: req.user?.sub
-      });
+      const loginRequest: LoginRequest = req.body;
+      const result = await authService.login(loginRequest);
 
       res.json({
         success: true,
-        message: 'Logged out successfully',
-        timestamp: new Date().toISOString()
+        data: result,
+        timestamp: new Date().toISOString(),
       });
+
+    } catch (error: any) {
+      logger.error('Login endpoint error', { error: error.message });
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: {
+          code: error.code || 'LOGIN_ERROR',
+          message: error.message || 'Login failed',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+/**
+ * @route   POST /auth/signup
+ * @desc    User registration
+ * @access  Public
+ */
+router.post(
+  '/signup',
+  rateLimiter({ windowMs: 60 * 60 * 1000, max: 3 }), // 3 attempts per hour
+  validateSignup,
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      const signupRequest: SignupRequest = req.body;
+      const result = await authService.signup(signupRequest);
+
+      res.status(201).json({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      });
+
+    } catch (error: any) {
+      logger.error('Signup endpoint error', { error: error.message });
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: {
+          code: error.code || 'SIGNUP_ERROR',
+          message: error.message || 'Signup failed',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+/**
+ * @route   POST /auth/forgot-password
+ * @desc    Request password reset
+ * @access  Public
+ */
+router.post(
+  '/forgot-password',
+  rateLimiter({ windowMs: 60 * 60 * 1000, max: 3 }), // 3 attempts per hour
+  validateForgotPassword,
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      const forgotPasswordRequest: ForgotPasswordRequest = req.body;
+      const result = await authService.forgotPassword(forgotPasswordRequest);
+
+      res.json({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      });
+
+    } catch (error: any) {
+      logger.error('Forgot password endpoint error', { error: error.message });
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: {
+          code: error.code || 'FORGOT_PASSWORD_ERROR',
+          message: error.message || 'Password reset request failed',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+/**
+ * @route   POST /auth/reset-password
+ * @desc    Reset password with confirmation code
+ * @access  Public
+ */
+router.post(
+  '/reset-password',
+  rateLimiter({ windowMs: 60 * 60 * 1000, max: 5 }), // 5 attempts per hour
+  validateResetPassword,
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      const resetPasswordRequest: ResetPasswordRequest = req.body;
+      const result = await authService.resetPassword(resetPasswordRequest);
+
+      res.json({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      });
+
+    } catch (error: any) {
+      logger.error('Reset password endpoint error', { error: error.message });
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: {
+          code: error.code || 'RESET_PASSWORD_ERROR',
+          message: error.message || 'Password reset failed',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+/**
+ * @route   POST /auth/refresh
+ * @desc    Refresh access token
+ * @access  Public
+ */
+router.post(
+  '/refresh',
+  rateLimiter({ windowMs: 5 * 60 * 1000, max: 10 }), // 10 attempts per 5 minutes
+  validateRefreshToken,
+  handleValidationErrors,
+  async (req, res) => {
+    try {
+      const refreshTokenRequest: RefreshTokenRequest = req.body;
+      const result = await authService.refreshToken(refreshTokenRequest);
+
+      res.json({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      });
+
+    } catch (error: any) {
+      logger.error('Refresh token endpoint error', { error: error.message });
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: {
+          code: error.code || 'REFRESH_TOKEN_ERROR',
+          message: error.message || 'Token refresh failed',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+/**
+ * @route   POST /auth/logout
+ * @desc    User logout (client-side token invalidation)
+ * @access  Private
+ */
+router.post(
+  '/logout',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      // In a JWT-based system, logout is typically handled client-side
+      // by removing the tokens. We log the event for audit purposes.
       
-    } catch (error) {
-      logger.error('Logout failed', {
+      logger.info('User logout', {
         userId: req.user?.sub,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        email: req.user?.email,
+        clinicId: req.user?.clinicId,
       });
-      
-      // Even if logout fails, return success to avoid confusion
+
       res.json({
         success: true,
-        message: 'Logged out successfully',
-        timestamp: new Date().toISOString()
+        data: { message: 'Logged out successfully' },
+        timestamp: new Date().toISOString(),
+      });
+
+    } catch (error: any) {
+      logger.error('Logout endpoint error', { error: error.message });
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'LOGOUT_ERROR',
+          message: 'Logout failed',
+        },
+        timestamp: new Date().toISOString(),
       });
     }
-  })
+  }
 );
 
 /**
- * Forgot password request
- * POST /v1/auth/forgot-password
+ * @route   GET /auth/me
+ * @desc    Get current user information
+ * @access  Private
  */
-router.post('/forgot-password',
-  passwordResetRateLimiter,
-  asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const validatedData = ForgotPasswordSchema.parse(req.body);
-    
+router.get(
+  '/me',
+  authMiddleware,
+  async (req: AuthenticatedRequest, res) => {
     try {
-      // TODO: Implement forgot password logic
-      // This would typically:
-      // 1. Check if user exists
-      // 2. Generate reset token
-      // 3. Send reset email
-      // 4. Log the event
-      
-      logger.info('Password reset requested', {
-        email: validatedData.email
-      });
-
-      // Always return success for security (don't reveal if email exists)
       res.json({
-        success: true,
-        message: 'If an account with that email exists, you will receive password reset instructions.',
-        timestamp: new Date().toISOString()
-      });
-      
-    } catch (error) {
-      logger.error('Forgot password request failed', {
-        email: validatedData.email,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      // Still return success for security
-      res.json({
-        success: true,
-        message: 'If an account with that email exists, you will receive password reset instructions.',
-        timestamp: new Date().toISOString()
-      });
-    }
-  })
-);
-
-/**
- * Reset password with token
- * POST /v1/auth/reset-password
- */
-router.post('/reset-password',
-  passwordResetRateLimiter,
-  logAuthEvent('PASSWORD_RESET'),
-  asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const validatedData = ResetPasswordSchema.parse(req.body);
-    
-    try {
-      // TODO: Implement password reset logic
-      // This would typically:
-      // 1. Validate reset token
-      // 2. Update password in Cognito
-      // 3. Invalidate all sessions
-      // 4. Log the event
-      
-      logger.info('Password reset successful', {
-        token: validatedData.token.substring(0, 8) + '...' // Log partial token for tracking
-      });
-
-      res.json({
-        success: true,
-        message: 'Password reset successful. Please log in with your new password.',
-        timestamp: new Date().toISOString()
-      });
-      
-    } catch (error) {
-      logger.warn('Password reset failed', {
-        token: validatedData.token.substring(0, 8) + '...',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      throw new ValidationError('Invalid or expired reset token');
-    }
-  })
-);
-
-/**
- * Change password (authenticated users)
- * POST /v1/auth/change-password
- */
-router.post('/change-password',
-  authRateLimiter,
-  logAuthEvent('PASSWORD_RESET'),
-  asyncHandler(async (req: AuthenticatedRequest, res) => {
-    if (!req.user) {
-      throw new UnauthorizedError('Authentication required');
-    }
-    
-    const validatedData = ChangePasswordSchema.parse(req.body);
-    
-    try {
-      // TODO: Implement password change logic
-      // This would typically:
-      // 1. Verify current password
-      // 2. Update password in Cognito
-      // 3. Optionally invalidate other sessions
-      // 4. Log the event
-      
-      logger.info('Password change successful', {
-        userId: req.user.sub
-      });
-
-      res.json({
-        success: true,
-        message: 'Password changed successfully',
-        timestamp: new Date().toISOString()
-      });
-      
-    } catch (error) {
-      logger.warn('Password change failed', {
-        userId: req.user.sub,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      throw new ValidationError('Current password is incorrect');
-    }
-  })
-);
-
-/**
- * Generate magic link for passwordless login
- * POST /v1/auth/magic-link
- */
-router.post('/magic-link',
-  magicLinkRateLimiter,
-  asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const validatedData = MagicLinkSchema.parse(req.body);
-    
-    try {
-      // TODO: Implement magic link logic
-      // This would typically:
-      // 1. Validate identifier (email/phone)
-      // 2. Generate secure token
-      // 3. Store token with expiration
-      // 4. Send magic link via email/SMS
-      
-      logger.info('Magic link requested', {
-        identifier: validatedData.identifier,
-        type: validatedData.type
-      });
-
-      res.json({
-        success: true,
-        message: `Magic link sent to your ${validatedData.type}`,
-        expiresIn: 600, // 10 minutes
-        timestamp: new Date().toISOString()
-      });
-      
-    } catch (error) {
-      logger.error('Magic link generation failed', {
-        identifier: validatedData.identifier,
-        type: validatedData.type,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      throw error;
-    }
-  })
-);
-
-/**
- * Verify magic link token
- * POST /v1/auth/verify-magic-link
- */
-router.post('/verify-magic-link',
-  authRateLimiter,
-  logAuthEvent('LOGIN'),
-  asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const { token } = req.body;
-    
-    if (!token) {
-      throw new ValidationError('Magic link token is required');
-    }
-    
-    try {
-      // TODO: Implement magic link verification
-      // This would typically:
-      // 1. Validate token
-      // 2. Check expiration
-      // 3. Generate JWT tokens
-      // 4. Clean up used token
-      
-      const response = {
         success: true,
         data: {
-          accessToken: 'jwt-access-token',
-          refreshToken: 'jwt-refresh-token',
-          expiresIn: 3600,
-          user: {
-            id: 'user-id',
-            email: 'user@example.com',
-            clinicId: 'clinic-id',
-            role: 'DOCTOR'
-          }
+          user: req.user,
+          clinicId: req.clinicId,
         },
-        timestamp: new Date().toISOString()
-      };
-
-      logger.info('Magic link login successful', {
-        userId: response.data.user.id,
-        token: token.substring(0, 8) + '...'
+        timestamp: new Date().toISOString(),
       });
 
-      res.json(response);
-      
-    } catch (error) {
-      logger.warn('Magic link verification failed', {
-        token: token.substring(0, 8) + '...',
-        error: error instanceof Error ? error.message : 'Unknown error'
+    } catch (error: any) {
+      logger.error('Get current user error', { error: error.message });
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'USER_INFO_ERROR',
+          message: 'Failed to get user information',
+        },
+        timestamp: new Date().toISOString(),
       });
-      
-      throw new ValidationError('Invalid or expired magic link');
     }
-  })
+  }
 );
 
 /**
- * Get current user profile
- * GET /v1/auth/me
+ * @route   POST /auth/magic-link
+ * @desc    Generate magic link for patient portal
+ * @access  Private (Doctor/Admin only)
  */
-router.get('/me',
-  asyncHandler(async (req: AuthenticatedRequest, res) => {
-    if (!req.user) {
-      throw new UnauthorizedError('Authentication required');
-    }
-    
+router.post(
+  '/magic-link',
+  authMiddleware,
+  requireRole('Doctor', 'Admin'),
+  validateMagicLink,
+  handleValidationErrors,
+  async (req: AuthenticatedRequest, res) => {
     try {
-      // TODO: Fetch user profile from database
-      
-      const userProfile = {
-        id: req.user.sub,
-        email: req.user.email,
-        clinicId: req.user.clinicId,
-        role: req.user.role,
-        firstName: 'John',
-        lastName: 'Doe',
-        permissions: req.user['cognito:groups'] || [],
-        lastLoginAt: new Date().toISOString(),
-        onboardingCompleted: true
+      const magicLinkRequest: MagicLinkRequest = {
+        ...req.body,
+        clinicId: req.clinicId!, // Ensure clinic ID is from authenticated user
       };
+
+      const result = await authService.generateMagicLink(magicLinkRequest);
 
       res.json({
         success: true,
-        data: userProfile,
-        timestamp: new Date().toISOString()
+        data: result,
+        timestamp: new Date().toISOString(),
       });
-      
-    } catch (error) {
-      logger.error('Failed to fetch user profile', {
-        userId: req.user.sub,
-        error: error instanceof Error ? error.message : 'Unknown error'
+
+    } catch (error: any) {
+      logger.error('Magic link endpoint error', { error: error.message });
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: {
+          code: error.code || 'MAGIC_LINK_ERROR',
+          message: error.message || 'Magic link generation failed',
+        },
+        timestamp: new Date().toISOString(),
       });
-      
-      throw new NotFoundError('User profile');
     }
-  })
+  }
 );
 
-export { router as authRouter };
+/**
+ * @route   POST /auth/invite
+ * @desc    Invite user to clinic
+ * @access  Private (Admin only)
+ */
+router.post(
+  '/invite',
+  authMiddleware,
+  requireRole('Admin', 'SystemAdmin'),
+  validateInviteUser,
+  handleValidationErrors,
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const inviteRequest: InviteUserRequest = {
+        ...req.body,
+        clinicId: req.clinicId!, // Ensure clinic ID is from authenticated user
+      };
+
+      const result = await authService.inviteUser(inviteRequest, req.user!.sub);
+
+      res.json({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      });
+
+    } catch (error: any) {
+      logger.error('Invite user endpoint error', { error: error.message });
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: {
+          code: error.code || 'INVITE_ERROR',
+          message: error.message || 'User invitation failed',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+/**
+ * @route   POST /auth/users/:userId/enable
+ * @desc    Enable/disable user account
+ * @access  Private (Admin only)
+ */
+router.post(
+  '/users/:userId/enable',
+  authMiddleware,
+  requireRole('Admin', 'SystemAdmin'),
+  async (req: AuthenticatedRequest, res) => {
+    try {
+      const { userId } = req.params;
+      const { enabled } = req.body;
+
+      await authService.setUserEnabled(userId, enabled);
+
+      res.json({
+        success: true,
+        data: { message: `User ${enabled ? 'enabled' : 'disabled'} successfully` },
+        timestamp: new Date().toISOString(),
+      });
+
+    } catch (error: any) {
+      logger.error('Set user enabled error', { error: error.message });
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: {
+          code: error.code || 'USER_ENABLE_ERROR',
+          message: error.message || 'Failed to update user status',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+);
+
+export default router;

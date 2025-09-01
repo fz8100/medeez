@@ -9,7 +9,7 @@
     "test": "jest",
     "cdk": "cdk",
     "deploy:dev": "cdk deploy --all --require-approval never --context environment=dev",
-    "deploy:staging": "cdk deploy --all --require-approval never --context environment=staging", 
+    "deploy:staging": "cdk deploy --all --require-approval never --context environment=staging",
     "deploy:prod": "cdk deploy --all --require-approval never --context environment=prod",
     "destroy:dev": "cdk destroy --all --force --context environment=dev",
     "destroy:staging": "cdk destroy --all --force --context environment=staging",
@@ -22,10 +22,11 @@
   "devDependencies": {
     "@types/jest": "^29.5.5",
     "@types/node": "^20.6.0",
+    "aws-cdk": "^2.100.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.1",
-    "typescript": "^5.2.2",
-    "aws-cdk": "^2.100.0"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.100.0",

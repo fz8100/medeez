@@ -8,7 +8,7 @@ import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53targets from 'aws-cdk-lib/aws-route53-targets';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
-import * as amplify from '@aws-cdk/aws-amplify-alpha';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import { EnvironmentConfig } from './config';
 
@@ -22,7 +22,6 @@ interface FrontendStackProps extends cdk.StackProps {
 
 export class FrontendStack extends cdk.Stack {
   public readonly cloudFrontDistribution: cloudfront.Distribution;
-  public readonly amplifyApp: amplify.App;
   public readonly webUrl: string;
 
   constructor(scope: Construct, id: string, props: FrontendStackProps) {
@@ -103,16 +102,6 @@ export class FrontendStack extends cdk.Stack {
         },
         referrerPolicy: {
           referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
-          override: false,
-        },
-      },
-      customHeadersBehavior: {
-        'Permissions-Policy': {
-          value: 'camera=(), microphone=(), geolocation=()',
-          override: false,
-        },
-        'X-Content-Security-Policy': {
-          value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.paddle.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ${apiUrl} wss://*.amazonaws.com; frame-src https://sandbox-checkout.paddle.com https://checkout.paddle.com;`,
           override: false,
         },
       },
@@ -197,9 +186,9 @@ export class FrontendStack extends cdk.Stack {
 
     // Update S3 bucket policy for CloudFront OAC
     staticAssetsBucket.addToResourcePolicy(
-      new cdk.aws_iam.PolicyStatement({
-        effect: cdk.aws_iam.Effect.ALLOW,
-        principals: [new cdk.aws_iam.ServicePrincipal('cloudfront.amazonaws.com')],
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        principals: [new iam.ServicePrincipal('cloudfront.amazonaws.com')],
         actions: ['s3:GetObject'],
         resources: [`${staticAssetsBucket.bucketArn}/*`],
         conditions: {
@@ -210,82 +199,34 @@ export class FrontendStack extends cdk.Stack {
       })
     );
 
-    // Amplify App for SSR
-    this.amplifyApp = new amplify.App(this, 'AmplifyApp', {
-      appName: `medeez-${environment}`,
-      description: `Medeez ${environment} web application`,
-      sourceCodeProvider: new amplify.GitHubSourceCodeProvider({
-        owner: 'your-github-username', // Replace with actual GitHub username
-        repository: 'medeez-v2',
-        oauthToken: cdk.SecretValue.secretsManager('github-token'), // Store GitHub token in Secrets Manager
-      }),
-      environmentVariables: {
-        AMPLIFY_DIFF_DEPLOY: 'false',
-        AMPLIFY_MONOREPO_APP_ROOT: 'apps/web',
-        NEXT_PUBLIC_API_URL: apiUrl,
-        NEXT_PUBLIC_APP_ENV: environment,
-        NEXT_PUBLIC_COGNITO_REGION: this.region,
-        NEXT_PUBLIC_COGNITO_USER_POOL_ID: userPool.userPoolId,
-        NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
-        NEXT_PUBLIC_CLOUDFRONT_URL: this.cloudFrontDistribution.distributionDomainName,
-        NEXT_PUBLIC_DOMAIN_NAME: config.domainName || 'localhost',
-      },
-      buildSpec: amplify.BuildSpec.fromObjectToYaml({
-        version: '1.0',
-        applications: [
-          {
-            appRoot: 'apps/web',
-            frontend: {
-              phases: {
-                preBuild: {
-                  commands: [
-                    'cd ../..',
-                    'npm install -g pnpm',
-                    'pnpm install --frozen-lockfile',
-                  ],
-                },
-                build: {
-                  commands: [
-                    'cd apps/web',
-                    'pnpm build',
-                  ],
-                },
-              },
-              artifacts: {
-                baseDirectory: 'apps/web/.next',
-                files: ['**/*'],
-              },
-              cache: {
-                paths: [
-                  'node_modules/**/*',
-                  'apps/web/.next/cache/**/*',
-                ],
-              },
-            },
-          },
-        ],
-      }),
-    });
+    // Placeholder for static web assets deployment
+    // In production, this would be handled by a separate deployment process
+    const placeholderHtml = `<!DOCTYPE html>
+    <html>
+    <head>
+      <title>Medeez - Medical Practice Management</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+        h1 { color: #2c3e50; }
+        p { color: #7f8c8d; }
+      </style>
+    </head>
+    <body>
+      <h1>Medeez Infrastructure Deployed Successfully</h1>
+      <p>Environment: ${environment}</p>
+      <p>API URL: ${apiUrl}</p>
+      <p>The web application will be deployed separately.</p>
+    </body>
+    </html>`;
 
-    // Amplify Branch
-    const mainBranch = this.amplifyApp.addBranch('main', {
-      branchName: environment === 'prod' ? 'main' : environment,
-      description: `${environment} environment branch`,
-      stage: environment === 'prod' ? amplify.Stage.PRODUCTION : amplify.Stage.DEVELOPMENT,
+    new s3Deploy.BucketDeployment(this, 'DeployPlaceholderSite', {
+      sources: [s3Deploy.Source.data('index.html', placeholderHtml)],
+      destinationBucket: staticAssetsBucket,
+      distribution: this.cloudFrontDistribution,
+      distributionPaths: ['/*'],
     });
-
-    // Custom Domain for Amplify (if certificate available)
-    if (config.domainName && config.certificateArn && config.hostedZoneId) {
-      const domain = this.amplifyApp.addDomain('Domain', {
-        domainName: config.domainName,
-        subDomains: [
-          {
-            branch: mainBranch,
-            prefix: environment === 'prod' ? '' : environment,
-          },
-        ],
-      });
-    }
 
     // Route53 Records
     if (config.domainName && config.hostedZoneId) {
@@ -341,12 +282,6 @@ export class FrontendStack extends cdk.Stack {
       description: 'CloudFront Distribution ID',
     });
 
-    new ssm.StringParameter(this, 'AmplifyAppIdParameter', {
-      parameterName: `/medeez/${environment}/amplify/app-id`,
-      stringValue: this.amplifyApp.appId,
-      description: 'Amplify App ID',
-    });
-
     // Outputs
     new cdk.CfnOutput(this, 'WebUrl', {
       value: this.webUrl,
@@ -358,12 +293,6 @@ export class FrontendStack extends cdk.Stack {
       value: this.cloudFrontDistribution.distributionId,
       description: 'CloudFront Distribution ID',
       exportName: `MedeezCloudFrontDistributionId-${environment}`,
-    });
-
-    new cdk.CfnOutput(this, 'AmplifyAppId', {
-      value: this.amplifyApp.appId,
-      description: 'Amplify App ID',
-      exportName: `MedeezAmplifyAppId-${environment}`,
     });
 
     new cdk.CfnOutput(this, 'StaticAssetsBucketName', {

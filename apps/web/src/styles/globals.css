@@ -1,0 +1,290 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 200 98% 39%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 200 98% 39%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 200 98% 39%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 200 98% 39%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Improve readability */
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-balance;
+  }
+  
+  p {
+    @apply text-pretty;
+  }
+  
+  /* Focus styles for accessibility */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+  
+  /* Remove autofill styles */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px hsl(var(--background)) inset !important;
+    -webkit-text-fill-color: hsl(var(--foreground)) !important;
+  }
+  
+  /* Custom scrollbar styles */
+  .scrollbar-custom::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-custom::-webkit-scrollbar-track {
+    @apply bg-muted rounded-full;
+  }
+  
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/40;
+  }
+  
+  /* Print styles for medical records */
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    
+    .print-only {
+      display: block !important;
+    }
+    
+    body {
+      -webkit-print-color-adjust: exact;
+      color-adjust: exact;
+    }
+    
+    .print-break-before {
+      break-before: page;
+    }
+    
+    .print-break-after {
+      break-after: page;
+    }
+    
+    .print-break-avoid {
+      break-inside: avoid;
+    }
+  }
+}
+
+@layer components {
+  /* Medical form styles */
+  .medical-form {
+    @apply space-y-6;
+  }
+  
+  .medical-form .form-group {
+    @apply space-y-2;
+  }
+  
+  .medical-form label {
+    @apply text-sm font-medium text-foreground;
+  }
+  
+  .medical-form input[type="text"],
+  .medical-form input[type="email"],
+  .medical-form input[type="password"],
+  .medical-form input[type="tel"],
+  .medical-form input[type="date"],
+  .medical-form select,
+  .medical-form textarea {
+    @apply input-medical;
+  }
+  
+  .medical-form input:invalid {
+    @apply border-destructive focus-visible:ring-destructive;
+  }
+  
+  .medical-form .error-message {
+    @apply text-sm text-destructive;
+  }
+  
+  /* Medical table styles */
+  .medical-table {
+    @apply w-full border-collapse border-spacing-0;
+  }
+  
+  .medical-table th {
+    @apply bg-muted/50 px-4 py-3 text-left text-sm font-medium text-muted-foreground border-b;
+  }
+  
+  .medical-table td {
+    @apply px-4 py-3 text-sm border-b;
+  }
+  
+  .medical-table tbody tr:hover {
+    @apply bg-muted/30;
+  }
+  
+  /* Medical status indicators */
+  .status-active {
+    @apply inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs font-medium text-success-800;
+  }
+  
+  .status-inactive {
+    @apply inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800;
+  }
+  
+  .status-pending {
+    @apply inline-flex items-center rounded-full bg-warning-100 px-2.5 py-0.5 text-xs font-medium text-warning-800;
+  }
+  
+  .status-cancelled {
+    @apply inline-flex items-center rounded-full bg-error-100 px-2.5 py-0.5 text-xs font-medium text-error-800;
+  }
+  
+  /* Priority indicators */
+  .priority-high {
+    @apply text-error-600 font-semibold;
+  }
+  
+  .priority-medium {
+    @apply text-warning-600 font-medium;
+  }
+  
+  .priority-low {
+    @apply text-success-600;
+  }
+  
+  /* Medical card styles */
+  .patient-card {
+    @apply card-medical p-6 hover:shadow-md transition-shadow cursor-pointer;
+  }
+  
+  .appointment-card {
+    @apply border-l-4 border-l-medical-500 bg-medical-50 p-4 rounded-r-lg;
+  }
+  
+  /* Loading states */
+  .skeleton {
+    @apply animate-pulse bg-muted rounded;
+  }
+  
+  .skeleton-text {
+    @apply skeleton h-4 w-full;
+  }
+  
+  .skeleton-circle {
+    @apply skeleton rounded-full;
+  }
+}
+
+@layer utilities {
+  /* Medical-specific utilities */
+  .text-medical-primary {
+    @apply text-medical-600;
+  }
+  
+  .bg-medical-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%);
+  }
+  
+  /* Responsive utilities for medical layouts */
+  .medical-grid {
+    @apply grid gap-6;
+    @apply grid-cols-1 md:grid-cols-2 lg:grid-cols-3;
+  }
+  
+  .medical-sidebar {
+    @apply w-64 flex-shrink-0 hidden lg:block;
+  }
+  
+  .medical-main {
+    @apply flex-1 min-w-0;
+  }
+  
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-in-out;
+  }
+  
+  .animate-slide-in {
+    animation: slide-in 0.3s ease-out;
+  }
+  
+  /* Accessibility utilities */
+  .sr-only-focusable:focus {
+    @apply not-sr-only;
+  }
+  
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .border {
+      @apply border-2;
+    }
+    
+    .medical-table th,
+    .medical-table td {
+      @apply border-2;
+    }
+  }
+  
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

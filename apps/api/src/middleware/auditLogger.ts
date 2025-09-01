@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthenticatedRequest, AuditAction } from '@/types';
 import { auditLogger, logAuditEvent } from '@/utils/logger';
+import { rdsService } from '@/services/rdsService';
 
 /**
  * HIPAA audit logging middleware

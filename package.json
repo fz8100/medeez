@@ -1,0 +1,58 @@
+{
+  "name": "medeez-v2",
+  "version": "2.0.0",
+  "description": "Medeez v2 - HIPAA-compliant solo doctor practice management system",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "packageManager": "pnpm@8.15.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r --parallel dev",
+    "lint": "pnpm -r lint",
+    "type-check": "pnpm -r type-check",
+    "test": "pnpm -r test",
+    "clean": "pnpm -r clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml}\"",
+    "web:dev": "pnpm --filter @medeez/web dev",
+    "web:build": "pnpm --filter @medeez/web build",
+    "web:start": "pnpm --filter @medeez/web start",
+    "api:dev": "pnpm --filter @medeez/api dev",
+    "api:build": "pnpm --filter @medeez/api build",
+    "api:start": "pnpm --filter @medeez/api start"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml}": [
+      "prettier --write"
+    ]
+  },
+  "keywords": [
+    "medical",
+    "healthcare",
+    "practice-management",
+    "hipaa",
+    "solo-doctor",
+    "saas"
+  ],
+  "author": "Medeez Team",
+  "license": "PROPRIETARY"
+}

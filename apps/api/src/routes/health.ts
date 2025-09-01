@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { healthCheckLogger } from '@/middleware/requestLogger';
 import { logger } from '@/utils/logger';
+import { rdsService } from '@/services/rdsService';
+import { s3Service } from '@/services/s3Service';
+import { emailService } from '@/services/emailService';
+import { BaseRepository } from '@/repositories/base';
+import { DynamoDBClient, DescribeTableCommand } from '@aws-sdk/client-dynamodb';
+import { KMSClient, DescribeKeyCommand } from '@aws-sdk/client-kms';
 
 const router = Router();
 

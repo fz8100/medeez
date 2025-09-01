@@ -42,8 +42,8 @@ export class DatabaseStack extends cdk.Stack {
         ? dynamodb.TableEncryption.CUSTOMER_MANAGED 
         : dynamodb.TableEncryption.DEFAULT,
       encryptionKey: config.dynamodb.encryption ? kmsKey : undefined,
-      pointInTimeRecovery: config.dynamodb.pointInTimeRecovery,
-      contributorInsightsEnabled: environment === 'prod',
+      pointInTimeRecoveryEnabled: config.dynamodb.pointInTimeRecovery,
+      contributorInsights: environment === 'prod',
       removalPolicy: environment === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       timeToLiveAttribute: 'ttl',
       stream: dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
@@ -127,12 +127,6 @@ export class DatabaseStack extends cdk.Stack {
       versioned: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       enforceSSL: true,
-      intelligentTieringConfigurations: [
-        {
-          id: 'EntireBucket',
-          status: s3.IntelligentTieringStatus.ENABLED,
-        },
-      ],
       lifecycleRules: [
         {
           id: 'DeleteIncompleteMultipartUploads',
@@ -169,11 +163,6 @@ export class DatabaseStack extends cdk.Stack {
           maxAge: 3600,
         },
       ],
-      notificationsHandlerRole: cdk.Arn.format({
-        service: 'iam',
-        resource: 'role',
-        resourceName: 'service-role/LambdaNotificationsRole',
-      }, this),
       removalPolicy: environment === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
     });
 

@@ -6,7 +6,9 @@ export type EntityType = 'CLINIC' | 'USER' | 'PATIENT' | 'APPOINTMENT' | 'NOTE' 
 
 export type AppointmentStatus = 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 
-export type UserRole = 'ADMIN' | 'DOCTOR' | 'STAFF';
+export type UserRole = 'SystemAdmin' | 'Admin' | 'Doctor' | 'Staff';
+
+export type SubscriptionStatus = 'trial' | 'active' | 'past_due' | 'cancelled' | 'expired';
 
 export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED';
 
@@ -209,6 +211,130 @@ export interface GoogleCalendarWebhook extends WebhookPayload {
     resourceUri: string;
     channelId: string;
   };
+}
+
+// Authentication types
+export interface LoginRequest {
+  email: string;
+  password: string;
+  mfaCode?: string;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  idToken: string;
+  expiresIn: number;
+  tokenType: string;
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: UserRole;
+    clinicId: string;
+    permissions: string[];
+    onboardingComplete: boolean;
+    subscriptionStatus: SubscriptionStatus;
+    trialEndDate?: string;
+  };
+  clinic: {
+    id: string;
+    name: string;
+    subscriptionStatus: SubscriptionStatus;
+    subscriptionTier: string;
+    trialEndDate?: string;
+    features: string[];
+  };
+}
+
+export interface SignupRequest {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  clinicName?: string;
+  invitationCode?: string;
+}
+
+export interface SignupResponse {
+  success: boolean;
+  message: string;
+  requiresVerification: boolean;
+  userId?: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  confirmationCode: string;
+  newPassword: string;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface RefreshTokenResponse {
+  accessToken: string;
+  idToken: string;
+  expiresIn: number;
+  tokenType: string;
+}
+
+export interface MagicLinkRequest {
+  patientEmail: string;
+  clinicId: string;
+  expiresIn?: number;
+}
+
+export interface MagicLinkResponse {
+  magicLink: string;
+  token: string;
+  expiresAt: string;
+}
+
+export interface InviteUserRequest {
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: UserRole;
+  clinicId: string;
+  permissions?: string[];
+  expiresIn?: number;
+}
+
+export interface InviteUserResponse {
+  invitationCode: string;
+  invitationLink: string;
+  expiresAt: string;
+}
+
+export interface UserInvitation extends BaseEntity {
+  invitationCode: string;
+  invitedEmail: string;
+  invitedBy: string;
+  clinicId: string;
+  role: UserRole;
+  firstName: string;
+  lastName: string;
+  permissions?: string[];
+  status: 'PENDING' | 'USED' | 'EXPIRED';
+  expiresAt: string;
+  usedAt?: string;
+  usedBy?: string;
+}
+
+export interface MagicLinkToken extends BaseEntity {
+  token: string;
+  patientEmail: string;
+  clinicId: string;
+  expiresAt: string;
+  usedAt?: string;
+  metadata?: Record<string, any>;
 }
 
 export { };

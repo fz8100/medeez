@@ -12,6 +12,7 @@ import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53targets from 'aws-cdk-lib/aws-route53-targets';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 import { EnvironmentConfig } from './config';
 
@@ -53,7 +54,9 @@ export class ApiStack extends cdk.Stack {
         requireDigits: config.cognito.passwordPolicy.requireDigits,
         requireSymbols: config.cognito.passwordPolicy.requireSymbols,
       },
-      mfa: config.cognito.mfaConfiguration,
+      mfa: config.cognito.mfaConfiguration === 'OFF' ? cognito.Mfa.OFF : 
+           config.cognito.mfaConfiguration === 'OPTIONAL' ? cognito.Mfa.OPTIONAL : 
+           cognito.Mfa.REQUIRED,
       mfaSecondFactor: {
         sms: true,
         otp: true,
@@ -164,9 +167,9 @@ export class ApiStack extends cdk.Stack {
       reservedConcurrentExecutions: config.lambda.reservedConcurrency,
       tracing: lambda.Tracing.ACTIVE,
       insightsVersion: lambda.LambdaInsightsVersion.VERSION_1_0_229_0,
-      deadLetterQueue: new cdk.aws_sqs.Queue(this, 'ApiDLQ', {
+      deadLetterQueue: new sqs.Queue(this, 'ApiDLQ', {
         queueName: `medeez-${environment}-api-dlq`,
-        encryption: cdk.aws_sqs.QueueEncryption.KMS,
+        encryption: sqs.QueueEncryption.KMS,
         encryptionMasterKey: kmsKey,
         retentionPeriod: cdk.Duration.days(14),
       }),
@@ -192,7 +195,6 @@ export class ApiStack extends cdk.Stack {
         cacheClusterEnabled: environment === 'prod',
         cacheClusterSize: environment === 'prod' ? '0.5' : undefined,
         cacheTtl: cdk.Duration.minutes(5),
-        cacheKeyParameters: ['method.request.header.Authorization'],
       },
       defaultCorsPreflightOptions: {
         allowOrigins: [
@@ -265,10 +267,6 @@ export class ApiStack extends cdk.Stack {
     });
     protectedRoutes.addProxy({
       defaultIntegration: lambdaIntegration,
-      anyMethod: {
-        authorizer: cognitoAuthorizer,
-        authorizationType: apigateway.AuthorizationType.COGNITO,
-      },
     });
 
     // Health check endpoint (no auth)
@@ -304,9 +302,6 @@ export class ApiStack extends cdk.Stack {
     });
     webhooks.addProxy({
       defaultIntegration: lambdaIntegration,
-      anyMethod: {
-        apiKeyRequired: true,
-      },
     });
 
     // Custom domain for API
